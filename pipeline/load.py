@@ -135,13 +135,19 @@ def init_db():
     # 8. Legal citations verification registry
     conn.execute("""
         CREATE TABLE IF NOT EXISTS legal_citations (
-            citation_id         TEXT PRIMARY KEY,
-            law_name            TEXT NOT NULL,
-            paragraph           TEXT NOT NULL,
-            topic               TEXT NOT NULL,
-            official_text_de    TEXT NOT NULL,
-            source_url          TEXT NOT NULL,
-            verified_at         DATE NOT NULL
+            citation_id                 TEXT PRIMARY KEY,
+            law_name                    TEXT NOT NULL,
+            paragraph                   TEXT NOT NULL,
+            topic                       TEXT NOT NULL,
+            official_text_de            TEXT NOT NULL,
+            source_url                  TEXT NOT NULL,
+            verified_at                 DATE NOT NULL,
+            official_text_en            TEXT,
+            translation_verified        BOOLEAN DEFAULT FALSE,
+            translation_model           TEXT,
+            back_translation_de         TEXT,
+            back_translation_similarity DOUBLE,
+            glossary_violations         TEXT
         )
     """)
 

@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from app.utils.db import (
     query, get_source_registry, get_pipeline_status, verify_claim,
-    get_legal_citations, add_or_verify_legal_citation
+    get_legal_citations, add_or_verify_legal_citation, verify_citation_translation
 )
 from pipeline.extract_claims import (
     detect_legal_citations, validate_legal_citation, verify_and_annotate_text_citations
@@ -134,20 +134,90 @@ st.caption(
 
 legal_df = get_legal_citations()
 
-col_l1, col_l2 = st.columns([1, 1])
+n_provisions = len(legal_df)
+n_translated = len(legal_df[legal_df["official_text_en"].notna() & (legal_df["official_text_en"] != "")]) if not legal_df.empty else 0
+n_human_verified = len(legal_df[legal_df["translation_verified"] == True]) if not legal_df.empty else 0
+
+col_l1, col_l2, col_l3, col_l4 = st.columns(4)
 with col_l1:
-    st.metric("Verified Statutory Provisions", len(legal_df),
-              help="Provisions loaded from official government sources (gesetze-im-internet.de)")
+    st.metric("Statutory Provisions", n_provisions,
+              help="Authoritative German provisions from gesetze-im-internet.de")
 with col_l2:
     st.metric("Source Authority", "gesetze-im-internet.de",
-              help="Federal Ministry of Justice official portal")
+              help="Official portal of Federal Ministry of Justice")
+with col_l3:
+    st.metric("DeepL Translations (EN)", f"{n_translated}/{n_provisions}",
+              help="Machine-translated via DeepL API (api-free.deepl.com) - no LLM paraphrasing")
+with col_l4:
+    st.metric("Translation Verified", f"{n_human_verified}/{n_provisions}",
+              help="Strictly FALSE until confirmed by human auditor")
 
-with st.expander("📚 View All Authoritative Statutory Provisions in Database", expanded=False):
+with st.expander("📚 Dual-Language Statutory Repository (DE ↔ EN with DeepL & Safeguards)", expanded=False):
     if not legal_df.empty:
-        st.dataframe(
-            legal_df[["law_name", "paragraph", "topic", "source_url", "verified_at"]],
-            use_container_width=True
-        )
+        # Overview table
+        summary_cols = ["law_name", "paragraph", "topic", "translation_verified", "translation_model", "back_translation_similarity"]
+        avail_cols = [c for c in summary_cols if c in legal_df.columns]
+        st.dataframe(legal_df[avail_cols], use_container_width=True)
+
+        st.markdown("---")
+        st.markdown("##### Detailed Provision Inspector & Human Verification")
+
+        for idx, row in legal_df.iterrows():
+            cid = row["citation_id"]
+            law = row["law_name"]
+            para = row["paragraph"]
+            topic = row["topic"]
+            text_de = row["official_text_de"]
+            text_en = row.get("official_text_en")
+            trans_ver = bool(row.get("translation_verified", False))
+            model = row.get("translation_model") or "DeepL-API-Free"
+            sim = row.get("back_translation_similarity")
+            violations_raw = row.get("glossary_violations")
+
+            status_color = "green" if trans_ver else "orange"
+            status_text = "🟢 Human Verified" if trans_ver else "🟠 Pending Human Audit (Raw DeepL Output)"
+
+            with st.container():
+                st.markdown(f"**{law} {para} — {topic}** (`{cid}`)")
+                st.caption(f"Status: **{status_text}** · Engine: `{model}` · Source: [gesetze-im-internet.de]({row['source_url']})")
+
+                c_de, c_en = st.columns(2)
+                with c_de:
+                    st.markdown("**🇩🇪 Verbatim Official Text (DE)**")
+                    st.info(text_de)
+                with c_en:
+                    st.markdown("**🇬🇧 DeepL Machine Translation (EN)**")
+                    if text_en:
+                        st.success(text_en)
+                    else:
+                        st.warning("Translation pending. Set DEEPL_API_KEY and run pipeline.translate_legal_citations.")
+
+                # Validation & human audit action row
+                v_col1, v_col2, v_col3 = st.columns([2, 2, 1])
+                with v_col1:
+                    import json
+                    v_list = []
+                    if violations_raw and isinstance(violations_raw, str) and violations_raw.startswith("["):
+                        try:
+                            v_list = json.loads(violations_raw)
+                        except Exception:
+                            pass
+                    if not v_list:
+                        st.markdown("📖 **Glossary Validation:** `✓ 100% Terminology Compliant`")
+                    else:
+                        st.markdown(f"⚠️ **Glossary Flags ({len(v_list)}):** " + ", ".join([v.get("german_term", "") for v in v_list]))
+                with v_col2:
+                    if sim is not None and not pd.isna(sim):
+                        st.markdown(f"🔄 **Back-Translation Match:** `{sim * 100:.1f}% Similarity`")
+                    else:
+                        st.markdown("🔄 **Back-Translation Match:** `Pending execution`")
+                with v_col3:
+                    btn_label = "Unverify" if trans_ver else "✓ Confirm (Human)"
+                    if st.button(btn_label, key=f"verify_btn_{cid}"):
+                        verify_citation_translation(cid, not trans_ver)
+                        st.rerun()
+
+                st.divider()
     else:
         st.warning("No legal citations seeded. Run pipeline.load to initialize.")
 

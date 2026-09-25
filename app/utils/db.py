@@ -89,12 +89,26 @@ def verify_claim(claim_id: str):
 
 
 def get_legal_citations() -> pd.DataFrame:
-    """Get all verified legal citations."""
+    """Get all verified legal citations including translation columns."""
     return query("""
-        SELECT citation_id, law_name, paragraph, topic, official_text_de, source_url, verified_at
+        SELECT citation_id, law_name, paragraph, topic, official_text_de,
+               official_text_en, translation_verified, translation_model,
+               back_translation_de, back_translation_similarity, glossary_violations,
+               source_url, verified_at
         FROM legal_citations
         ORDER BY law_name, paragraph
     """)
+
+
+def verify_citation_translation(citation_id: str, verified: bool = True):
+    """Mark a machine translation as human-verified or unverified."""
+    conn = get_write_connection()
+    conn.execute("""
+        UPDATE legal_citations
+        SET translation_verified = ?
+        WHERE citation_id = ?
+    """, [verified, citation_id])
+    conn.close()
 
 
 def add_or_verify_legal_citation(citation_id: str, law_name: str, paragraph: str,
@@ -102,7 +116,8 @@ def add_or_verify_legal_citation(citation_id: str, law_name: str, paragraph: str
     """Add or update a verified statutory provision in legal_citations."""
     conn = get_write_connection()
     conn.execute("""
-        INSERT OR REPLACE INTO legal_citations VALUES (?, ?, ?, ?, ?, ?, CURRENT_DATE)
+        INSERT OR REPLACE INTO legal_citations (citation_id, law_name, paragraph, topic, official_text_de, source_url, verified_at)
+        VALUES (?, ?, ?, ?, ?, ?, CURRENT_DATE)
     """, [citation_id, law_name, paragraph, topic, official_text_de, source_url])
     conn.close()
 
