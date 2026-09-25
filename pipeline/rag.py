@@ -97,6 +97,12 @@ def store_chunks(doc: dict, chunks: list, embeddings: list, conn) -> int:
     document_date = doc.get("date")
     date_str = str(document_date) if document_date else "unknown"
 
+    # Ensure VSS extension is loaded for this connection
+    try:
+        conn.execute("LOAD vss;")
+    except Exception:
+        pass
+
     stored_count = 0
 
     for i, (chunk_text, embedding) in enumerate(zip(chunks, embeddings)):
@@ -122,6 +128,12 @@ def retrieve_relevant_chunks(query: str, source_id: str, conn,
     Retrieve the most relevant chunks for a query using vector similarity.
     Returns a list of dicts with chunk_text, score, and document_url.
     """
+    # Ensure VSS extension is loaded
+    try:
+        conn.execute("LOAD vss;")
+    except Exception:
+        pass
+
     model = _get_model()
     query_embedding = model.encode([query], normalize_embeddings=True).tolist()[0]
 

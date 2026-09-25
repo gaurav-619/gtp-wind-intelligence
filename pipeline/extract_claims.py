@@ -49,10 +49,11 @@ EXTRACTION_SCHEMA = {
 # LLM call: Ollama first, OpenRouter fallback
 # --------------------------------------------------------------------------
 
-def call_llm(prompt: str) -> str:
+def call_llm(prompt: str) -> tuple[str, str]:
     """
     Call an LLM to extract structured data.
-    Tries Ollama (local) first, falls back to OpenRouter (cloud).
+    Tries Ollama (local) first, falls back to OpenRouter (cloud) with multiple fallback models.
+    Returns (response_text, model_name).
     """
     # Attempt 1: Ollama (local)
     try:
@@ -65,12 +66,11 @@ def call_llm(prompt: str) -> str:
         if response.status_code == 200:
             result = response.json().get("response", "")
             print(f"  [LLM] Used Ollama ({model})")
-            return result
+            return result, model
     except Exception as e:
         print(f"  [LLM] Ollama unavailable: {e}")
 
     # Attempt 2: OpenRouter (cloud fallback)
-    model = os.getenv("OPENROUTER_MODEL", "mistralai/mistral-7b-instruct:free")
     api_key = os.getenv("OPENROUTER_API_KEY")
 
     if not api_key or api_key == "your_key_here":
@@ -79,25 +79,47 @@ def call_llm(prompt: str) -> str:
             "Set OPENROUTER_API_KEY in .env or install Ollama."
         )
 
-    try:
-        response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-            },
-            timeout=30,
-        )
-        result = response.json()["choices"][0]["message"]["content"]
-        print(f"  [LLM] Used OpenRouter ({model})")
-        return result
+    primary_model = os.getenv("OPENROUTER_MODEL", "inclusionai/ling-3.0-flash-fin:free")
+    candidate_models = [
+        primary_model,
+        "liquid/lfm-2.5-2.6b:free",
+        "qwen/qwen3.8-27b:free",
+    ]
+    # Remove duplicates while preserving order
+    seen = set()
+    candidate_models = [m for m in candidate_models if not (m in seen or seen.add(m))]
 
-    except Exception as e:
-        raise ValueError(f"Both Ollama and OpenRouter failed: {e}")
+    last_error = None
+    for model in candidate_models:
+        try:
+            response = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key.strip()}",
+                    "HTTP-Referer": "https://github.com/gtp-wind",
+                    "X-Title": "GTP Wind Intelligence",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                },
+                timeout=30,
+            )
+            data = response.json()
+            if response.status_code == 200 and "choices" in data and data["choices"]:
+                result = data["choices"][0]["message"]["content"]
+                print(f"  [LLM] Used OpenRouter ({model})")
+                return result, model
+            else:
+                err_msg = data.get("error", {}).get("message", f"HTTP {response.status_code}")
+                print(f"  [LLM] OpenRouter model {model} failed: {err_msg}")
+                last_error = err_msg
+        except Exception as e:
+            print(f"  [LLM] OpenRouter model {model} error: {e}")
+            last_error = str(e)
+
+    raise ValueError(f"Both Ollama and all OpenRouter models failed. Last error: {last_error}")
 
 
 # --------------------------------------------------------------------------
@@ -118,18 +140,21 @@ Description: {schema['description']}
 Unit: {schema['unit']}
 German terms to look for: {', '.join(schema['german_terms'])}
 
-Return a JSON object with exactly these fields:
+Return ONLY a valid JSON object with exactly these fields:
 {{
   "found": true or false,
-  "value": the numeric value or null,
-  "period": the time period (e.g. "Q1-2026") or null,
-  "source_sentence_de": the original German sentence containing the value,
-  "source_sentence_en": your English translation of that sentence,
+  "value": numeric value as integer or float (or null),
+  "period": the time period (e.g. "Q1-2024") or null,
+  "source_sentence_de": "the exact original German sentence containing the value",
+  "source_sentence_en": "your English translation of that sentence",
   "confidence": a float between 0 and 1
 }}
 
-If the metric is not mentioned, return {{"found": false}}.
-Do not invent values. Only extract what is explicitly stated.
+Rules:
+1. German formatting uses dots for thousands and commas for decimals (e.g. 1.680 MW is 1680 MW; 0,89 is 0.89). Convert to standard JSON number.
+2. If the metric is not mentioned or no clear value exists, return {{"found": false}}.
+3. Do not invent values. Only extract what is explicitly stated in the text.
+4. Output raw JSON only. Do not add markdown commentary or extra text outside the JSON.
 
 Text to extract from:
 {combined_text}"""
@@ -150,6 +175,20 @@ def validate_claim(result: dict, schema: dict, full_text: str) -> bool:
         return False
 
     value = result.get("value")
+    if isinstance(value, str):
+        try:
+            cleaned_val = value.strip().replace(" ", "")
+            if "." in cleaned_val and "," in cleaned_val:
+                cleaned_val = cleaned_val.replace(".", "").replace(",", ".")
+            elif "." in cleaned_val and len(cleaned_val.split(".")[-1]) == 3:
+                cleaned_val = cleaned_val.replace(".", "")
+            else:
+                cleaned_val = cleaned_val.replace(",", ".")
+            value = float(cleaned_val)
+            result["value"] = value
+        except Exception:
+            return False
+
     if value is None or not isinstance(value, (int, float)) or value <= 0:
         return False
 
@@ -168,6 +207,13 @@ def validate_claim(result: dict, schema: dict, full_text: str) -> bool:
         return False
 
     confidence = result.get("confidence", 0)
+    if isinstance(confidence, str):
+        try:
+            confidence = float(confidence)
+            result["confidence"] = confidence
+        except Exception:
+            confidence = 0.0
+
     if not isinstance(confidence, (int, float)) or confidence <= 0.5:
         return False
 
@@ -189,7 +235,6 @@ def extract_claims_from_document(doc: dict, conn) -> list:
     full_text = doc.get("text", "")
 
     extracted = []
-    model_name = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
 
     for metric, schema in EXTRACTION_SCHEMA.items():
         print(f"\n  Extracting: {metric}...")
@@ -206,7 +251,7 @@ def extract_claims_from_document(doc: dict, conn) -> list:
 
             # Build prompt and call LLM
             prompt = build_extraction_prompt(chunks, metric, schema)
-            llm_response = call_llm(prompt)
+            llm_response, used_model = call_llm(prompt)
 
             # Parse JSON response (handle malformed JSON)
             result = _parse_json_response(llm_response)
@@ -232,7 +277,7 @@ def extract_claims_from_document(doc: dict, conn) -> list:
                     result["value"], schema["unit"],
                     result.get("source_sentence_de", ""),
                     result.get("source_sentence_en", ""),
-                    document_url, chunk_id, model_name,
+                    document_url, chunk_id, used_model,
                     result.get("confidence", 0.0),
                 ])
 
@@ -265,27 +310,29 @@ def _parse_json_response(response: str) -> dict:
     if not response:
         return None
 
-    # Try direct parse
-    try:
-        return json.loads(response)
-    except json.JSONDecodeError:
-        pass
-
-    # Try to find JSON in the response (LLMs often wrap in markdown)
-    json_match = re.search(r"\{[^{}]*\}", response, re.DOTALL)
-    if json_match:
+    # 1. First look for ```json ... ``` code fence
+    fence_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", response, re.DOTALL)
+    if fence_match:
         try:
-            return json.loads(json_match.group())
+            return json.loads(fence_match.group(1))
         except json.JSONDecodeError:
             pass
 
-    # Try with code block markers removed
-    cleaned = re.sub(r"```(?:json)?\s*", "", response)
-    cleaned = cleaned.strip()
+    # 2. Direct parse
     try:
-        return json.loads(cleaned)
+        return json.loads(response.strip())
     except json.JSONDecodeError:
         pass
+
+    # 3. Find outermost { ... }
+    first_brace = response.find("{")
+    last_brace = response.rfind("}")
+    if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+        candidate = response[first_brace:last_brace + 1]
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            pass
 
     return None
 
