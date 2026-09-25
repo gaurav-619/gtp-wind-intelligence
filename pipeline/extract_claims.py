@@ -126,6 +126,20 @@ def call_llm(prompt: str) -> tuple[str, str]:
 # Prompt building
 # --------------------------------------------------------------------------
 
+# Regex matching German and English hedge, approximation, and estimation keywords
+HEDGE_REGEX = re.compile(
+    r"\b(rund|vorl(?:ä|ae)ufig\w*|gesch(?:ä|ae)tzt\w*|sch(?:ä|ae)tzung\w*|circa|ca\.?|etwa|ungef(?:ä|ae)hr\w*|preliminary|estimated|approx(?:imately)?|around|about)\b",
+    re.IGNORECASE
+)
+
+
+def detect_hedge_language(text: str) -> bool:
+    """Detect German or English hedge, approximation, and estimation keywords."""
+    if not text:
+        return False
+    return bool(HEDGE_REGEX.search(text))
+
+
 def build_extraction_prompt(chunks: list, metric: str, schema: dict) -> str:
     """
     Build a structured extraction prompt for the LLM.
@@ -147,7 +161,8 @@ Return ONLY a valid JSON object with exactly these fields:
   "period": the time period (e.g. "Q1-2024") or null,
   "source_sentence_de": "the exact original German sentence containing the value",
   "source_sentence_en": "your English translation of that sentence",
-  "confidence": a float between 0 and 1
+  "confidence": a float between 0 and 1,
+  "is_preliminary": true or false
 }}
 
 Rules:
@@ -155,7 +170,10 @@ Rules:
 2. If the metric is not mentioned or no clear value exists, return {{"found": false}}.
 3. Do not invent values. Only extract what is explicitly stated in the text.
 4. Output raw JSON only. Do not add markdown commentary or extra text outside the JSON.
-5. Confidence must reflect your certainty in the specific extracted numeric value, not merely whether the sentence discusses this topic. If you cannot isolate one exact number (e.g. the source gives a range, an estimate pending review, or no figure at all), confidence must be 0.0-0.2, regardless of how clearly the sentence discusses the topic.
+5. Confidence scoring tiers:
+   - Tier 1 (Definitive, exact figure): If a single specific, finalized numeric value is stated (e.g. "Auftragseingang von 1.680 MW"), confidence must be 0.85-1.0 and is_preliminary: false.
+   - Tier 2 (Preliminary / Hedged figure): If a specific numeric value is present but explicitly qualified by hedge or estimate language (e.g. "rund 1.700 MW", "vorläufig", "geschätzt", "circa", "etwa"), confidence must be 0.55-0.65 and is_preliminary: true.
+   - Tier 3 (No isolated value / Range / General discussion): If you cannot isolate one exact number (e.g. the source gives a range like "1.500 bis 1.800 MW", an estimate without a number, or no figure at all), set "value": null, "confidence": 0.0-0.2, and is_preliminary: false.
 
 Text to extract from:
 {combined_text}"""
@@ -175,6 +193,7 @@ def validate_claim(result: dict, schema: dict, full_text: str) -> bool:
     # Hard enforcement: confidence must be 0.0 if no definitive value exists or not found
     if not result.get("found", False) or result.get("value") is None:
         result["confidence"] = 0.0
+        result["is_preliminary"] = False
         return False
 
     value = result.get("value")
@@ -190,9 +209,13 @@ def validate_claim(result: dict, schema: dict, full_text: str) -> bool:
             value = float(cleaned_val)
             result["value"] = value
         except Exception:
+            result["confidence"] = 0.0
+            result["is_preliminary"] = False
             return False
 
     if value is None or not isinstance(value, (int, float)) or value <= 0:
+        result["confidence"] = 0.0
+        result["is_preliminary"] = False
         return False
 
     low, high = schema["plausible_range"]
@@ -200,6 +223,7 @@ def validate_claim(result: dict, schema: dict, full_text: str) -> bool:
         return False
 
     source_de = result.get("source_sentence_de", "")
+    source_en = result.get("source_sentence_en", "")
     if not source_de or not source_de.strip():
         return False
 
@@ -213,11 +237,35 @@ def validate_claim(result: dict, schema: dict, full_text: str) -> bool:
     if isinstance(confidence, str):
         try:
             confidence = float(confidence)
-            result["confidence"] = confidence
         except Exception:
             confidence = 0.0
 
-    if not isinstance(confidence, (int, float)) or confidence <= 0.5:
+    if not isinstance(confidence, (int, float)):
+        confidence = 0.0
+
+    # Hedge language detection
+    is_hedged = (
+        detect_hedge_language(source_de) or
+        detect_hedge_language(source_en) or
+        bool(result.get("is_preliminary", False))
+    )
+
+    # 3-Tier Confidence & Preliminary Flag Enforcement:
+    # Tier 2: Real specific value present, but hedged with preliminary wording
+    if is_hedged:
+        result["is_preliminary"] = True
+        # Set / clamp confidence to mid-range (0.55-0.60) so it passes validation (> 0.5)
+        # and enters extracted_claims for human review rather than being discarded
+        if not (0.50 < confidence <= 0.65):
+            result["confidence"] = 0.55
+        else:
+            result["confidence"] = round(confidence, 2)
+    else:
+        result["is_preliminary"] = False
+        result["confidence"] = confidence
+
+    # Rejection threshold: claims with confidence <= 0.5 are rejected
+    if result["confidence"] <= 0.5:
         return False
 
     return True
@@ -420,11 +468,13 @@ def extract_claims_from_document(doc: dict, conn) -> list:
                 if n_unverified_de > 0 or n_unverified_en > 0:
                     claim_confidence = min(claim_confidence, 0.4)
 
+                is_preliminary = bool(result.get("is_preliminary", False))
+
                 # Store in extracted_claims
                 conn.execute("""
                     INSERT OR REPLACE INTO extracted_claims VALUES (
                         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?,
-                        FALSE, NULL, ?
+                        FALSE, NULL, ?, ?
                     )
                 """, [
                     claim_id, source_id, company, metric, period,
@@ -433,6 +483,7 @@ def extract_claims_from_document(doc: dict, conn) -> list:
                     source_en_annotated,
                     document_url, chunk_id, used_model,
                     claim_confidence,
+                    is_preliminary
                 ])
 
                 extracted.append({
@@ -440,7 +491,8 @@ def extract_claims_from_document(doc: dict, conn) -> list:
                     "metric": metric,
                     "value": result["value"],
                     "period": period,
-                    "confidence": result.get("confidence", 0.0),
+                    "confidence": claim_confidence,
+                    "is_preliminary": is_preliminary,
                 })
 
                 print(f"    ✓ Found: {result['value']} {schema['unit']} ({period})")

@@ -62,7 +62,7 @@ claims = query("""
     SELECT claim_id, entity, metric, period, value, unit,
            source_sentence_de, source_sentence_en,
            document_url, extracted_at, extraction_model,
-           human_verified, confidence_score
+           human_verified, confidence_score, is_preliminary
     FROM extracted_claims
     ORDER BY human_verified ASC, extracted_at DESC
 """)
@@ -86,10 +86,17 @@ else:
         st.markdown("**Unverified claims — review before citing:**")
 
         for _, row in unverified.iterrows():
+            is_prelim = bool(row.get("is_preliminary", False))
+            status_icon = "🟠 [PRELIMINARY]" if is_prelim else "🟡"
             with st.expander(
-                f"🟡 {row['entity']} · {row['metric']} · "
+                f"{status_icon} {row['entity']} · {row['metric']} · "
                 f"{row['period']} · {row['value']} {row['unit']}"
             ):
+                if is_prelim:
+                    st.warning(
+                        "⚠️ **Preliminary / Hedged Claim**: This figure was qualified as preliminary/estimated "
+                        "(e.g., 'rund', 'vorläufig', 'geschätzt'). Verify against subsequent filings before final citing."
+                    )
                 col1, col2 = st.columns(2)
                 with col1:
                     st.markdown("**🇩🇪 Original German:**")
@@ -100,9 +107,10 @@ else:
 
                 st.caption(f"Source: {row['document_url']}")
                 confidence = row['confidence_score'] if row['confidence_score'] else 0
+                status_desc = "Preliminary / Hedged" if is_prelim else "Definitive"
                 st.caption(
                     f"Model: {row['extraction_model']} · "
-                    f"Confidence: {confidence:.2f}"
+                    f"Confidence: {confidence:.2f} ({status_desc})"
                 )
 
                 if st.button("✓ Mark as verified",
@@ -114,9 +122,11 @@ else:
     if not verified.empty:
         st.markdown("**Verified claims — cleared for use:**")
         for _, row in verified.iterrows():
+            is_prelim = bool(row.get("is_preliminary", False))
+            tag = " [PRELIMINARY]" if is_prelim else ""
             st.success(
                 f"✓ {row['entity']} · {row['metric']} · "
-                f"{row['period']}: {row['value']} {row['unit']}"
+                f"{row['period']}: {row['value']} {row['unit']}{tag}"
             )
 
 st.divider()

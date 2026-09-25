@@ -128,7 +128,8 @@ def init_db():
             extraction_model        TEXT,
             human_verified          BOOLEAN DEFAULT FALSE,
             verified_at             TIMESTAMP,
-            confidence_score        DOUBLE
+            confidence_score        DOUBLE,
+            is_preliminary          BOOLEAN DEFAULT FALSE
         )
     """)
 
