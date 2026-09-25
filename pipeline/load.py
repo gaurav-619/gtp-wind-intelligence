@@ -218,6 +218,8 @@ def load_wind_plants(df, conn):
     df = df[required_cols].copy()
 
     try:
+        # Clear existing mastr_wind plants to prevent stale/residual records
+        conn.execute("DELETE FROM wind_plants WHERE source_id = 'mastr_wind'")
         # Upsert using DuckDB's pandas integration
         conn.execute("INSERT OR REPLACE INTO wind_plants SELECT * FROM df")
 
