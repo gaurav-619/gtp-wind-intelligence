@@ -221,8 +221,144 @@ def validate_claim(result: dict, schema: dict, full_text: str) -> bool:
 
 
 # --------------------------------------------------------------------------
-# Extraction pipeline
+# Legal & Regulatory Citation Verification Layer
 # --------------------------------------------------------------------------
+
+CITATION_REGEX = re.compile(
+    r"(§+\s*\d+[a-z]?(?:\s*(?:Absatz|Abs\.)\s*\d+)?(?:\s*(?:Satz|S\.)\s*\d+)?)\s+([A-Za-zÄÖÜäöü\-]+(?:\s+\d{4})?)",
+    re.IGNORECASE
+)
+
+
+def detect_legal_citations(text: str) -> list[dict]:
+    """
+    Detect regulatory and statutory citations in text using regex.
+    Catches patterns like '§ 5 Absatz 1 MaStRV', '§ 3 MaStRV', '§ 4 EEG 2023', '§ 4 BImSchG'.
+    """
+    if not text:
+        return []
+
+    matches = []
+    for m in CITATION_REGEX.finditer(text):
+        raw_match = m.group(0).strip()
+        para_part = m.group(1).strip()
+        law_part = m.group(2).strip()
+
+        # Normalize base paragraph, e.g. "§ 5 Absatz 1" -> "§ 5"
+        base_para = re.match(r"(§+\s*\d+[a-z]?)", para_part)
+        norm_para = base_para.group(1).replace(" ", "") if base_para else para_part
+        if norm_para.startswith("§") and not norm_para.startswith("§ "):
+            norm_para = "§ " + norm_para.lstrip("§")
+
+        matches.append({
+            "raw_text": raw_match,
+            "paragraph_full": para_part,
+            "paragraph": norm_para,
+            "law_name": law_part,
+            "start": m.start(),
+            "end": m.end()
+        })
+    return matches
+
+
+def validate_legal_citation(citation: dict, conn=None) -> tuple[bool, dict | None]:
+    """
+    Validate a detected legal citation against the authoritative legal_citations table.
+    Never auto-passes: must match an authentic row in legal_citations.
+    Returns (is_valid, record_or_none).
+    """
+    close_conn = False
+    if conn is None:
+        conn = duckdb.connect("db/gtp.duckdb", read_only=True)
+        close_conn = True
+
+    try:
+        law = citation.get("law_name", "")
+        para = citation.get("paragraph", "")
+
+        row = conn.execute("""
+            SELECT citation_id, law_name, paragraph, topic, official_text_de, source_url, verified_at
+            FROM legal_citations
+            WHERE (law_name ILIKE ? OR law_name ILIKE ?)
+              AND paragraph = ?
+        """, [law, f"{law}%", para]).fetchone()
+
+        if row:
+            record = {
+                "citation_id": row[0],
+                "law_name": row[1],
+                "paragraph": row[2],
+                "topic": row[3],
+                "official_text_de": row[4],
+                "source_url": row[5],
+                "verified_at": str(row[6]),
+            }
+            return True, record
+        else:
+            return False, None
+    finally:
+        if close_conn:
+            conn.close()
+
+
+def verify_and_annotate_text_citations(text: str, conn=None, replace_inline: bool = True) -> tuple[str, list[dict], int]:
+    """
+    Scan text for legal citations, validate against legal_citations table,
+    and flag/replace unverified citations inline with '[UNVERIFIED CITATION - needs manual check]'.
+    Logs step='citation_check' to pipeline_runs table.
+    Returns (annotated_text, results, n_unverified).
+    """
+    citations = detect_legal_citations(text)
+    if not citations:
+        return text, [], 0
+
+    close_conn = False
+    if conn is None:
+        conn = duckdb.connect("db/gtp.duckdb")
+        close_conn = True
+
+    try:
+        results = []
+        n_unverified = 0
+
+        # Replace in reverse order of appearance to maintain string character offsets
+        annotated_text = text
+        for cit in sorted(citations, key=lambda x: x["start"], reverse=True):
+            is_valid, matched_record = validate_legal_citation(cit, conn)
+            item = {
+                "citation_text": cit["raw_text"],
+                "paragraph": cit["paragraph"],
+                "law_name": cit["law_name"],
+                "is_verified": is_valid,
+                "matched_record": matched_record,
+            }
+            results.append(item)
+
+            if not is_valid:
+                n_unverified += 1
+                if replace_inline:
+                    annotated_text = (
+                        annotated_text[:cit["start"]] +
+                        f"{cit['raw_text']} [UNVERIFIED CITATION - needs manual check]" +
+                        annotated_text[cit["end"]:]
+                    )
+
+        results.reverse()
+
+        # Log to pipeline_runs
+        log_pipeline_run(
+            conn,
+            step="citation_check",
+            records_processed=len(citations),
+            source_id="legal_citations",
+            status="success" if n_unverified == 0 else "flagged",
+            notes=f"{n_unverified} unverified citations found in report",
+        )
+
+        return annotated_text, results, n_unverified
+    finally:
+        if close_conn:
+            conn.close()
 
 def extract_claims_from_document(doc: dict, conn) -> list:
     """
@@ -266,6 +402,21 @@ def extract_claims_from_document(doc: dict, conn) -> list:
                 claim_id = f"{source_id}_{metric}_{period}"
                 chunk_id = chunks[0].get("chunk_id", None) if chunks else None
 
+                source_de = result.get("source_sentence_de", "")
+                source_en = result.get("source_sentence_en", "")
+
+                # Scan and verify legal citations in source sentences
+                source_de_annotated, _, n_unverified_de = verify_and_annotate_text_citations(
+                    source_de, conn, replace_inline=True
+                )
+                source_en_annotated, _, n_unverified_en = verify_and_annotate_text_citations(
+                    source_en, conn, replace_inline=True
+                )
+
+                claim_confidence = result.get("confidence", 0.0)
+                if n_unverified_de > 0 or n_unverified_en > 0:
+                    claim_confidence = min(claim_confidence, 0.4)
+
                 # Store in extracted_claims
                 conn.execute("""
                     INSERT OR REPLACE INTO extracted_claims VALUES (
@@ -275,10 +426,10 @@ def extract_claims_from_document(doc: dict, conn) -> list:
                 """, [
                     claim_id, source_id, company, metric, period,
                     result["value"], schema["unit"],
-                    result.get("source_sentence_de", ""),
-                    result.get("source_sentence_en", ""),
+                    source_de_annotated,
+                    source_en_annotated,
                     document_url, chunk_id, used_model,
-                    result.get("confidence", 0.0),
+                    claim_confidence,
                 ])
 
                 extracted.append({

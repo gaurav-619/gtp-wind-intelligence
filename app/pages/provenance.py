@@ -10,7 +10,13 @@ import sys
 import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-from app.utils.db import query, get_source_registry, get_pipeline_status, verify_claim
+from app.utils.db import (
+    query, get_source_registry, get_pipeline_status, verify_claim,
+    get_legal_citations, add_or_verify_legal_citation
+)
+from pipeline.extract_claims import (
+    detect_legal_citations, validate_legal_citation, verify_and_annotate_text_citations
+)
 
 st.set_page_config(page_title="Data Provenance", layout="wide")
 st.title("📋 Data Provenance")
@@ -116,7 +122,110 @@ else:
 st.divider()
 
 # --------------------------------------------------------------------------
-# Section 3: Pipeline run log
+# Section 3: Legal & Regulatory Citation Audit
+# --------------------------------------------------------------------------
+
+st.subheader("⚖️ Legal Citation Audit (Statutory Safeguard Layer)")
+st.caption(
+    "Specific statutory citations (e.g. § 3 MaStRV, § 4 EEG 2023, § 4 BImSchG) "
+    "are treated like Tier 2 claims. Only paragraphs verified against "
+    "gesetze-im-internet.de are cleared as fact; unmatched references are flagged."
+)
+
+legal_df = get_legal_citations()
+
+col_l1, col_l2 = st.columns([1, 1])
+with col_l1:
+    st.metric("Verified Statutory Provisions", len(legal_df),
+              help="Provisions loaded from official government sources (gesetze-im-internet.de)")
+with col_l2:
+    st.metric("Source Authority", "gesetze-im-internet.de",
+              help="Federal Ministry of Justice official portal")
+
+with st.expander("📚 View All Authoritative Statutory Provisions in Database", expanded=False):
+    if not legal_df.empty:
+        st.dataframe(
+            legal_df[["law_name", "paragraph", "topic", "source_url", "verified_at"]],
+            use_container_width=True
+        )
+    else:
+        st.warning("No legal citations seeded. Run pipeline.load to initialize.")
+
+# Interactive Text Scanner
+st.markdown("##### Scan Text for Legal Citations")
+sample_default = (
+    "Gemäß § 4 EEG 2023 soll der Ausbaupfad für Windenergie an Land 115 GW im Jahr 2030 erreichen. "
+    "Für die Genehmigung gilt § 4 BImSchG sowie § 16b BImSchG für Repowering. "
+    "Die Registrierung erfolgt nach § 3 MaStRV. "
+    "Dagegen ist § 99 FantasieGesetz eine nicht verifizierte Norm."
+)
+input_text = st.text_area(
+    "Paste report excerpt or claim to verify legal citations:",
+    value=sample_default,
+    height=100
+)
+
+if st.button("🔍 Scan & Verify Legal Citations"):
+    annotated, scan_results, n_unverified = verify_and_annotate_text_citations(input_text)
+    
+    if not scan_results:
+        st.info("No legal citations detected in this text.")
+    else:
+        st.markdown(f"**Found {len(scan_results)} citations ({n_unverified} unverified):**")
+        
+        for item in scan_results:
+            cit_txt = item["citation_text"]
+            if item["is_verified"]:
+                rec = item["matched_record"]
+                st.success(
+                    f"🟢 **[VERIFIED]** `{cit_txt}` $\\rightarrow$ **{rec['law_name']} {rec['paragraph']}** "
+                    f"(*{rec['topic']}*) · [Official Law Text]({rec['source_url']}) (Verified: {rec['verified_at']})"
+                )
+            else:
+                st.error(
+                    f"🔴 **[UNVERIFIED - NOT FOUND]** `{cit_txt}` — Not found in legal_citations table! "
+                    "Must be human-verified before citing in client materials."
+                )
+
+        if n_unverified > 0:
+            st.markdown("**Annotated Text with Safeguard Flags:**")
+            st.code(annotated, language="markdown")
+
+st.markdown("##### Manual Legal Citation Verification (Human-in-the-Loop)")
+with st.expander("➕ Review & Add Confirmed Legal Citation to Database", expanded=False):
+    st.caption("Reviewers must confirm the statutory paragraph and paste the verified source_url from gesetze-im-internet.de.")
+    with st.form("add_legal_citation_form"):
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            form_law = st.text_input("Law Name (e.g. MaStRV, EEG 2023, BImSchG, WindBG)")
+            form_para = st.text_input("Paragraph (e.g. § 16b, § 5)")
+            form_topic = st.text_input("Topic / Headline (e.g. Repowering Genehmigung)")
+        with col_f2:
+            form_url = st.text_input("Confirmed Source URL (Required from gesetze-im-internet.de)",
+                                     placeholder="https://www.gesetze-im-internet.de/...")
+            form_text = st.text_area("Official German Text (Verbatim)", height=95)
+
+        submit_cit = st.form_submit_button("✓ Confirm & Save to legal_citations")
+        if submit_cit:
+            if not form_law or not form_para or not form_url.strip():
+                st.error("Law name, paragraph, and confirmed source_url are required.")
+            elif not form_url.startswith("http"):
+                st.error("Please provide a valid source URL starting with https://")
+            else:
+                cit_id = f"{form_law.lower().replace(' ', '_')}_{form_para.lower().replace('§', 'p').replace(' ', '').replace('.', '')}"
+                add_or_verify_legal_citation(
+                    cit_id, form_law.strip(), form_para.strip(),
+                    form_topic.strip() or "Gesetzliche Regelung",
+                    form_text.strip() or "Vorschrift bestätigt.",
+                    form_url.strip()
+                )
+                st.success(f"✓ Saved and verified: {form_law} {form_para}")
+                st.rerun()
+
+st.divider()
+
+# --------------------------------------------------------------------------
+# Section 4: Pipeline run log
 # --------------------------------------------------------------------------
 
 st.subheader("Pipeline Run Log")

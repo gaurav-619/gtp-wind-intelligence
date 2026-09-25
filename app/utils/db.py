@@ -86,3 +86,23 @@ def verify_claim(claim_id: str):
         WHERE claim_id = ?
     """, [claim_id])
     conn.close()
+
+
+def get_legal_citations() -> pd.DataFrame:
+    """Get all verified legal citations."""
+    return query("""
+        SELECT citation_id, law_name, paragraph, topic, official_text_de, source_url, verified_at
+        FROM legal_citations
+        ORDER BY law_name, paragraph
+    """)
+
+
+def add_or_verify_legal_citation(citation_id: str, law_name: str, paragraph: str,
+                                topic: str, official_text_de: str, source_url: str):
+    """Add or update a verified statutory provision in legal_citations."""
+    conn = get_write_connection()
+    conn.execute("""
+        INSERT OR REPLACE INTO legal_citations VALUES (?, ?, ?, ?, ?, ?, CURRENT_DATE)
+    """, [citation_id, law_name, paragraph, topic, official_text_de, source_url])
+    conn.close()
+
