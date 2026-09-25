@@ -38,10 +38,10 @@ def run_tier1():
         try:
             step_fn()
             results[step_name] = "success"
-            print(f"✓ {step_name}")
+            print(f"[OK] {step_name}")
         except Exception as e:
             results[step_name] = f"failed: {e}"
-            print(f"✗ {step_name}: {e}")
+            print(f"[FAIL] {step_name}: {e}")
 
     elapsed = time.time() - start
     print(f"\nTier 1 pipeline complete in {elapsed:.1f}s")

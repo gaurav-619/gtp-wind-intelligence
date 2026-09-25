@@ -148,6 +148,7 @@ def init_db():
 
     # Create HNSW index on document_chunks for fast similarity search
     try:
+        conn.execute("SET hnsw_enable_experimental_persistence = true;")
         conn.execute("""
             CREATE INDEX IF NOT EXISTS chunk_embedding_idx 
             ON document_chunks 
