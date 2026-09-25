@@ -1,0 +1,8 @@
+.env
+db/*.duckdb
+data/raw/*
+!data/raw/.gitkeep
+__pycache__/
+*.pyc
+.open-mastr/
+chroma/

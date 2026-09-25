@@ -1,0 +1,46 @@
+name: Monthly Pipeline Run
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 1 * *'  # 1st of every month at 06:00 UTC
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Tier 1 pipeline
+        run: python -m pipeline.run_pipeline tier1
+
+      - name: Run Tier 2 pipeline
+        run: python -m pipeline.run_pipeline tier2
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        continue-on-error: true  # Tier 2 failure should not block Tier 1 data
+
+      - name: Commit updated database
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add db/gtp.duckdb
+          git diff --staged --quiet || git commit -m "chore: monthly pipeline run $(date +%Y-%m-%d)"
+          git push
+        continue-on-error: true
+
+# NOTE: In production, the DuckDB file would be stored in cloud
+# storage (S3 or GCS) rather than committed to the repository.
+# Committing binary files to git is acceptable for a prototype
+# but causes repository bloat over time.
+# The Streamlit app would read from cloud storage in production.

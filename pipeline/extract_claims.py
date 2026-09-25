@@ -1,0 +1,335 @@
+"""
+pipeline/extract_claims.py
+Extract structured facts from document chunks using an LLM.
+Tries Ollama first (local), falls back to OpenRouter (cloud).
+Validates extracted claims against plausibility rules.
+"""
+
+import os
+import re
+import json
+import yaml
+import duckdb
+import requests
+from datetime import datetime
+from dotenv import load_dotenv
+from pipeline.load import log_pipeline_run
+from pipeline.rag import retrieve_relevant_chunks
+
+load_dotenv()
+
+
+# --------------------------------------------------------------------------
+# Extraction schema: what metrics to look for in press releases
+# --------------------------------------------------------------------------
+EXTRACTION_SCHEMA = {
+    "order_intake_mw": {
+        "description": "Total new orders received in megawatts",
+        "german_terms": ["Auftragseingang", "Neuaufträge", "Bestelleingang"],
+        "unit": "MW",
+        "plausible_range": (0, 5000),
+    },
+    "capacity_installed_mw": {
+        "description": "Total capacity commissioned in megawatts",
+        "german_terms": ["Installierte Leistung", "Errichtete Leistung",
+                         "Inbetriebnahme", "errichtet"],
+        "unit": "MW",
+        "plausible_range": (0, 3000),
+    },
+    "revenue_eur_millions": {
+        "description": "Total revenue in EUR millions",
+        "german_terms": ["Umsatz", "Erlöse", "Gesamtumsatz"],
+        "unit": "EUR_M",
+        "plausible_range": (0, 10000),
+    },
+}
+
+
+# --------------------------------------------------------------------------
+# LLM call: Ollama first, OpenRouter fallback
+# --------------------------------------------------------------------------
+
+def call_llm(prompt: str) -> str:
+    """
+    Call an LLM to extract structured data.
+    Tries Ollama (local) first, falls back to OpenRouter (cloud).
+    """
+    # Attempt 1: Ollama (local)
+    try:
+        model = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
+        response = requests.post(
+            "http://localhost:11434/api/generate",
+            json={"model": model, "prompt": prompt, "stream": False},
+            timeout=60,
+        )
+        if response.status_code == 200:
+            result = response.json().get("response", "")
+            print(f"  [LLM] Used Ollama ({model})")
+            return result
+    except Exception as e:
+        print(f"  [LLM] Ollama unavailable: {e}")
+
+    # Attempt 2: OpenRouter (cloud fallback)
+    model = os.getenv("OPENROUTER_MODEL", "mistralai/mistral-7b-instruct:free")
+    api_key = os.getenv("OPENROUTER_API_KEY")
+
+    if not api_key or api_key == "your_key_here":
+        raise ValueError(
+            "No OPENROUTER_API_KEY set and Ollama unavailable. "
+            "Set OPENROUTER_API_KEY in .env or install Ollama."
+        )
+
+    try:
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+            },
+            timeout=30,
+        )
+        result = response.json()["choices"][0]["message"]["content"]
+        print(f"  [LLM] Used OpenRouter ({model})")
+        return result
+
+    except Exception as e:
+        raise ValueError(f"Both Ollama and OpenRouter failed: {e}")
+
+
+# --------------------------------------------------------------------------
+# Prompt building
+# --------------------------------------------------------------------------
+
+def build_extraction_prompt(chunks: list, metric: str, schema: dict) -> str:
+    """
+    Build a structured extraction prompt for the LLM.
+    """
+    combined_text = "\n\n".join([c.get("chunk_text", "") for c in chunks])
+
+    prompt = f"""You are extracting structured data from a German wind energy press release.
+
+Extract this specific metric if present:
+Metric: {metric}
+Description: {schema['description']}
+Unit: {schema['unit']}
+German terms to look for: {', '.join(schema['german_terms'])}
+
+Return a JSON object with exactly these fields:
+{{
+  "found": true or false,
+  "value": the numeric value or null,
+  "period": the time period (e.g. "Q1-2026") or null,
+  "source_sentence_de": the original German sentence containing the value,
+  "source_sentence_en": your English translation of that sentence,
+  "confidence": a float between 0 and 1
+}}
+
+If the metric is not mentioned, return {{"found": false}}.
+Do not invent values. Only extract what is explicitly stated.
+
+Text to extract from:
+{combined_text}"""
+
+    return prompt
+
+
+# --------------------------------------------------------------------------
+# Claim validation
+# --------------------------------------------------------------------------
+
+def validate_claim(result: dict, schema: dict, full_text: str) -> bool:
+    """
+    Validate an extracted claim against plausibility rules.
+    Returns True only if ALL checks pass.
+    """
+    if not result.get("found", False):
+        return False
+
+    value = result.get("value")
+    if value is None or not isinstance(value, (int, float)) or value <= 0:
+        return False
+
+    low, high = schema["plausible_range"]
+    if value < low or value > high:
+        return False
+
+    source_de = result.get("source_sentence_de", "")
+    if not source_de or not source_de.strip():
+        return False
+
+    # At least one German term must appear in the full text (case-insensitive)
+    text_lower = full_text.lower()
+    term_found = any(term.lower() in text_lower for term in schema["german_terms"])
+    if not term_found:
+        return False
+
+    confidence = result.get("confidence", 0)
+    if not isinstance(confidence, (int, float)) or confidence <= 0.5:
+        return False
+
+    return True
+
+
+# --------------------------------------------------------------------------
+# Extraction pipeline
+# --------------------------------------------------------------------------
+
+def extract_claims_from_document(doc: dict, conn) -> list:
+    """
+    Extract all defined metrics from a document's chunks.
+    Returns a list of successfully extracted and validated claims.
+    """
+    source_id = doc.get("source_id", "unknown")
+    company = doc.get("company", "Unknown")
+    document_url = doc.get("url", "")
+    full_text = doc.get("text", "")
+
+    extracted = []
+    model_name = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
+
+    for metric, schema in EXTRACTION_SCHEMA.items():
+        print(f"\n  Extracting: {metric}...")
+
+        try:
+            # Retrieve relevant chunks via similarity search
+            chunks = retrieve_relevant_chunks(
+                schema["description"], source_id, conn, top_k=3
+            )
+
+            if not chunks:
+                print(f"    No relevant chunks found for {metric}")
+                continue
+
+            # Build prompt and call LLM
+            prompt = build_extraction_prompt(chunks, metric, schema)
+            llm_response = call_llm(prompt)
+
+            # Parse JSON response (handle malformed JSON)
+            result = _parse_json_response(llm_response)
+
+            if result is None:
+                print(f"    Could not parse LLM response for {metric}")
+                continue
+
+            # Validate
+            if validate_claim(result, schema, full_text):
+                period = result.get("period", "unknown")
+                claim_id = f"{source_id}_{metric}_{period}"
+                chunk_id = chunks[0].get("chunk_id", None) if chunks else None
+
+                # Store in extracted_claims
+                conn.execute("""
+                    INSERT OR REPLACE INTO extracted_claims VALUES (
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?,
+                        FALSE, NULL, ?
+                    )
+                """, [
+                    claim_id, source_id, company, metric, period,
+                    result["value"], schema["unit"],
+                    result.get("source_sentence_de", ""),
+                    result.get("source_sentence_en", ""),
+                    document_url, chunk_id, model_name,
+                    result.get("confidence", 0.0),
+                ])
+
+                extracted.append({
+                    "claim_id": claim_id,
+                    "metric": metric,
+                    "value": result["value"],
+                    "period": period,
+                    "confidence": result.get("confidence", 0.0),
+                })
+
+                print(f"    ✓ Found: {result['value']} {schema['unit']} ({period})")
+            else:
+                print(f"    ✗ Validation failed for {metric}")
+
+        except Exception as e:
+            print(f"    Error extracting {metric}: {e}")
+
+    # Log results
+    log_pipeline_run(conn, "extract_claims", len(extracted), source_id,
+                     "success" if extracted else "no_claims",
+                     f"Extracted {len(extracted)} claims from {company}")
+
+    print(f"\n  Summary for {company}: {len(extracted)} claims extracted")
+    return extracted
+
+
+def _parse_json_response(response: str) -> dict:
+    """Parse JSON from LLM response, handling common formatting issues."""
+    if not response:
+        return None
+
+    # Try direct parse
+    try:
+        return json.loads(response)
+    except json.JSONDecodeError:
+        pass
+
+    # Try to find JSON in the response (LLMs often wrap in markdown)
+    json_match = re.search(r"\{[^{}]*\}", response, re.DOTALL)
+    if json_match:
+        try:
+            return json.loads(json_match.group())
+        except json.JSONDecodeError:
+            pass
+
+    # Try with code block markers removed
+    cleaned = re.sub(r"```(?:json)?\s*", "", response)
+    cleaned = cleaned.strip()
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+
+    return None
+
+
+if __name__ == "__main__":
+    with open("config/tier2_sources.yaml") as f:
+        config = yaml.safe_load(f)
+
+    conn = duckdb.connect("db/gtp.duckdb")
+
+    for source in config["sources"]:
+        source_id = source["source_id"]
+        company = source["company"]
+
+        print(f"\n{'=' * 60}")
+        print(f"Extracting claims for {company} (source: {source_id})")
+        print(f"{'=' * 60}")
+
+        # Check if we have any chunks for this source
+        chunk_count = conn.execute("""
+            SELECT COUNT(*) FROM document_chunks WHERE source_id = ?
+        """, [source_id]).fetchone()[0]
+
+        if chunk_count == 0:
+            print(f"No document chunks found for {source_id}. "
+                  f"Run the RAG pipeline first.")
+            continue
+
+        # Get the full text from chunks for validation
+        chunks_df = conn.execute("""
+            SELECT chunk_text FROM document_chunks 
+            WHERE source_id = ? ORDER BY chunk_index
+        """, [source_id]).fetchdf()
+
+        full_text = "\n".join(chunks_df["chunk_text"].tolist())
+
+        doc = {
+            "source_id": source_id,
+            "company": company,
+            "url": "",
+            "text": full_text,
+        }
+
+        claims = extract_claims_from_document(doc, conn)
+        print(f"\nTotal claims for {company}: {len(claims)}")
+
+    conn.close()

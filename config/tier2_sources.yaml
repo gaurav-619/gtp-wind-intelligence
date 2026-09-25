@@ -1,0 +1,8 @@
+sources:
+  - company: Nordex
+    ir_page: https://www.nordex-online.com/de/investor-relations/pressemitteilungen/
+    pdf_pattern: "Quartalsbericht|Ergebnisse Q|Auftragseingang"
+    source_id: nordex_press
+    language: de
+    confidence_tier: 2
+    confidence_label: company_claim
