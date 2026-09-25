@@ -172,15 +172,8 @@ def fetch_and_seed_legal_citations(conn=None) -> list[dict]:
         except Exception as e:
             print(f"  [ERROR] Failed to fetch {cid}: {e}")
 
-    # Map mastrv_p5 alias to the primary § 5 Absatz 5 provision
-    conn.execute("""
-        INSERT OR REPLACE INTO legal_citations 
-        SELECT 'mastrv_p5', law_name, paragraph, topic, official_text_de, source_url, verified_at
-        FROM legal_citations WHERE citation_id = 'mastrv_p5_abs5'
-    """)
-    # Delete mastrv_p3 outright: § 3 was an erroneous citation for the 1-month registration deadline,
-    # which is authoritatively governed by § 5 Abs. 5 MaStRV.
-    conn.execute("DELETE FROM legal_citations WHERE citation_id = 'mastrv_p3'")
+    # Ensure redundant alias rows are purged (retaining canonical mastrv_p5_abs5)
+    conn.execute("DELETE FROM legal_citations WHERE citation_id IN ('mastrv_p5', 'mastrv_p3')")
 
     # Log to pipeline_runs
     log_pipeline_run(
