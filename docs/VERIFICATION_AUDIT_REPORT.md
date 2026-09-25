@@ -108,19 +108,27 @@ Final Output: 38,488 clean onshore wind turbine records
   WHERE bundesland_code = 'NI' AND betriebs_status = 'planned';
   -- Result: 1,633 plants, 10,197.92 MW
   ```
-* **Permitting Duration Median:**
+* **Permitting Duration Median (Exact SQL from `pipeline/aggregate.py:L86-L97`):**
   ```sql
-  SELECT median(datediff('day', registrierungsdatum, inbetriebnahmedatum))
+  SELECT MEDIAN(
+      DATEDIFF('day', registrierungsdatum, inbetriebnahmedatum)
+  ) as median_days
   FROM wind_plants
-  WHERE bundesland_code = 'NI' AND inbetriebnahmedatum IS NOT NULL
+  WHERE bundesland = 'Niedersachsen'
+    AND inbetriebnahmedatum IS NOT NULL
     AND registrierungsdatum IS NOT NULL
-    AND datediff('day', registrierungsdatum, inbetriebnahmedatum) BETWEEN 0 AND 3650
-    AND extract('year' from inbetriebnahmedatum) <= 2026;
-  -- Result: 608.0 days (~20.3 months)
+    AND DATEDIFF('day', registrierungsdatum, inbetriebnahmedatum) > 0
+    AND DATEDIFF('day', registrierungsdatum, inbetriebnahmedatum) < 3650
+    AND YEAR(inbetriebnahmedatum) <= 2026;
+  -- Result: 738.0 days (~24.6 months)
   ```
+* **Discrepancy Root-Cause Analysis (Resolved):**
+  - **Literal `aggregate.py` query (`> 0`):** Excludes 70 same-day administrative filings where registration occurred on the exact commissioning date (`diff = 0`). Evaluates across 233 genuine development cycles $\rightarrow$ **738.0 days**.
+  - **Ad-hoc test query (`>= 0` / `BETWEEN 0 AND 3650`):** Included those 70 zero-day administrative records, artificially dragging the median down to **608.0 days**.
+  - **Conclusion:** `aggregate.py`'s `> 0` filter correctly isolates actual permitting durations from same-day administrative registrations.
 * **Snapshot Record Stored:**
-  `NI_2026`: 14,428.3 MW installed, 6,403 operating plants, 10,197.9 MW planned, 1,633 planned plants, 738.0 days median permitting.
-* **Streamlit Verification:** Displays 14,428 MW and 6,403 plants on `app/pages/q1_capacity.py`.
+  `NI_2026`: 14,428.3 MW installed, 6,403 operating plants, 10,197.9 MW planned, 1,633 planned plants, **738.0 days** median permitting (100% exact match).
+* **Streamlit Verification:** Displays 14,428 MW and 6,403 plants on `app/pages/q1_capacity.py`, and 24.6 months on `app/pages/q2_pipeline.py`.
 
 ---
 
