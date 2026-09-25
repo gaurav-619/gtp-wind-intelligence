@@ -95,6 +95,30 @@ def validate_legal_glossary(text_de: str, text_en: str) -> list[dict]:
     return violations
 
 
+# Official EU IATE / statutory alignments for common machine-translation synonyms
+TERMINOLOGY_ALIGNMENTS = [
+    # KWK-Anlagen: DeepL translates as "CHP facilities" -> align to canonical IATE term "CHP plants" (IATE: 1104689)
+    (r"\bCHP facilities\b", "CHP plants"),
+    (r"\bcogeneration facilities\b", "cogeneration plants"),
+    (r"\bcombined heat and power facilities\b", "combined heat and power plants"),
+]
+
+
+def align_glossary_terminology(text_de: str, text_en: str) -> tuple[str, list[dict]]:
+    """
+    Enforces approved statutory terminology on machine translation output.
+    Replaces non-standard MT variants with canonical IATE terms,
+    then re-validates against LEGAL_ENERGY_GLOSSARY.
+    """
+    import re
+    aligned_en = text_en
+    for pattern, replacement in TERMINOLOGY_ALIGNMENTS:
+        aligned_en = re.sub(pattern, replacement, aligned_en)
+
+    remaining_violations = validate_legal_glossary(text_de, aligned_en)
+    return aligned_en, remaining_violations
+
+
 def back_translate_and_diff(text_de: str, text_en: str, api_key: str = None) -> tuple[str, float, list[str]]:
     """
     Validation layer: Back-translates the DeepL EN output back to DE (EN -> DE)
@@ -161,12 +185,21 @@ def translate_all_legal_citations(conn=None, api_key: str = None, run_back_trans
             raw_en = translate_with_deepl(text_de, source_lang="DE", target_lang="EN-US", api_key=api_key)
             print(f"  [OK] DeepL EN translation received ({len(raw_en)} chars)")
 
-            # 2. Terminology Glossary Validation
+            # 2. Terminology Glossary Validation & Automated Alignment
             violations = validate_legal_glossary(text_de, raw_en)
             if violations:
-                print(f"  [WARN] Glossary validation warnings ({len(violations)} terms):")
+                print(f"  [WARN] Initial glossary check found {len(violations)} non-standard terms:")
                 for v in violations:
-                    print(f"         - '{v['german_term']}' expected one of: {v['expected_english_any_of']}")
+                    print(f"         - '{v['german_term']}' expected: {v['expected_english_any_of']}")
+                # Enforce canonical statutory terms
+                aligned_en, remaining_violations = align_glossary_terminology(text_de, raw_en)
+                if not remaining_violations:
+                    print(f"  [FIX] Aligned terminology to approved glossary (resolved all flags)")
+                    raw_en = aligned_en
+                    violations = []
+                else:
+                    raw_en = aligned_en
+                    violations = remaining_violations
             else:
                 print("  [OK] Glossary check passed (100% domain terminology compliance)")
 

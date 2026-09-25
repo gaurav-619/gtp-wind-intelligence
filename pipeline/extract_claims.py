@@ -172,11 +172,9 @@ def validate_claim(result: dict, schema: dict, full_text: str) -> bool:
     Validate an extracted claim against plausibility rules.
     Returns True only if ALL checks pass.
     """
-    # Hard enforcement: confidence must be 0.0 if no definitive value exists
-    if result.get("value") is None:
+    # Hard enforcement: confidence must be 0.0 if no definitive value exists or not found
+    if not result.get("found", False) or result.get("value") is None:
         result["confidence"] = 0.0
-
-    if not result.get("found", False):
         return False
 
     value = result.get("value")
