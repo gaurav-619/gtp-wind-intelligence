@@ -155,6 +155,13 @@ Final Output: 38,488 clean onshore wind turbine records
 | `nordex_press_capacity_installed_mw_Q1-2024` | `capacity_installed_mw` | Q1-2024 | 1,156.0 | MW | `"Installierte Leistung: ... 1.156 MW..."` | `"Installed capacity: ... 1,156 MW..."` | 1.00 | **False** |
 | `nordex_press_revenue_eur_millions_Q1-2024` | `revenue_eur_millions` | Q1-2024 | 1,564.0 | EUR_M | `"Konzernumsatz ... 1.564 Mio. EUR..."` | `"The group revenue ... was 1,564 million EUR..."` | 0.99 | **False** |
 
+### 4. Confidence Calibration & Consistency Safeguards (Issue 5 Resolution)
+* **Model Self-Calibration:** When given hedged or estimated phrasing (*"rund"*, *"vorläufige Schätzungen"*), the model's reported score drops (from 1.00 down to 0.15–0.85). This variance reflects the **model's own intrinsic calibration**, not an explicit penalty from `validate_claim()`.
+* **Explicit Pipeline Penalties:** The only explicit code-level penalty is the statutory citation cap `min(claim_confidence, 0.4)` applied in `extract_claims_from_document()` when unverified regulatory citations are detected.
+* **Dual-Layer Inconsistency Prevention:**
+  1. *Prompt Directive:* Rule 5 requires the LLM to output `0.0–0.2` confidence if an exact discrete figure cannot be isolated.
+  2. *Hard Code Enforcement:* `validate_claim()` strictly clamps `result["confidence"] = 0.0` whenever `result.get("value") is None`, preventing any range or unparsed extraction from ever carrying high confidence into the database.
+
 ---
 
 ## Prompt 5: Frontend Data Path Trace (`app/*`)

@@ -155,6 +155,7 @@ Rules:
 2. If the metric is not mentioned or no clear value exists, return {{"found": false}}.
 3. Do not invent values. Only extract what is explicitly stated in the text.
 4. Output raw JSON only. Do not add markdown commentary or extra text outside the JSON.
+5. Confidence must reflect your certainty in the specific extracted numeric value, not merely whether the sentence discusses this topic. If you cannot isolate one exact number (e.g. the source gives a range, an estimate pending review, or no figure at all), confidence must be 0.0-0.2, regardless of how clearly the sentence discusses the topic.
 
 Text to extract from:
 {combined_text}"""
@@ -171,6 +172,10 @@ def validate_claim(result: dict, schema: dict, full_text: str) -> bool:
     Validate an extracted claim against plausibility rules.
     Returns True only if ALL checks pass.
     """
+    # Hard enforcement: confidence must be 0.0 if no definitive value exists
+    if result.get("value") is None:
+        result["confidence"] = 0.0
+
     if not result.get("found", False):
         return False
 
