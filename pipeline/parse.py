@@ -10,19 +10,42 @@ import os
 import re
 
 
-# Column mapping rules: partial string matching (case-insensitive)
+# Column mapping rules: exact or partial regex matching
 COLUMN_PATTERNS = {
-    "mastr_id":             [r"MastrNummer", r"mastr_nr", r"mastr_id"],
-    "display_name":         [r"Einheitname", r"name"],
-    "operator_name":        [r"Betreiber", r"operator"],
-    "betriebs_status":      [r"Betriebsstatus", r"status"],
-    "energy_source":        [r"Energietraeger", r"quelle", r"energietr"],
-    "inbetriebnahmedatum":  [r"Inbetriebnahme"],
-    "registrierungsdatum":  [r"Registrierung"],
-    "postleitzahl":         [r"Postleitzahl", r"plz"],
-    "bruttoleistung_kw":    [r"Bruttoleistung"],
-    "nettonennleistung_kw": [r"Nettonennleistung"],
-    "last_updated":         [r"Aktualisierung"],
+    "mastr_id":             [r"^EinheitMastrNummer$", r"^MastrNummer$", r"mastr_nr", r"mastr_id"],
+    "display_name":         [r"^NameStromerzeugungseinheit$", r"^NameWindpark$", r"^Einheitname$", r"^name$"],
+    "operator_name":        [r"^AnlagenbetreiberName$", r"^AnlagenbetreiberMastrNummer$", r"^Betreiber$", r"^operator$"],
+    "betriebs_status":      [r"^EinheitBetriebsstatus$", r"^Betriebsstatus$", r"^status$"],
+    "energy_source":        [r"^Energietraeger$", r"^quelle$"],
+    "inbetriebnahmedatum":  [r"^Inbetriebnahmedatum$"],
+    "planned_date":         [r"^GeplantesInbetriebnahmedatum$"],
+    "registrierungsdatum":  [r"^Registrierungsdatum$", r"^Registrierung$"],
+    "postleitzahl":         [r"^Postleitzahl$", r"^plz$"],
+    "bruttoleistung_kw":    [r"^Bruttoleistung$"],
+    "nettonennleistung_kw": [r"^Nettonennleistung$"],
+    "last_updated":         [r"^DatumLetzteAktualisierung$", r"^Aktualisierung$"],
+    "bundesland":           [r"^Bundesland$"],
+}
+
+# Bundesland name to code mapping
+BUNDESLAND_CODES = {
+    "Baden-Württemberg": "BW",
+    "Bayern": "BY",
+    "Berlin": "BE",
+    "Brandenburg": "BB",
+    "Bremen": "HB",
+    "Hamburg": "HH",
+    "Hessen": "HE",
+    "Mecklenburg-Vorpommern": "MV",
+    "Niedersachsen": "NI",
+    "Nordrhein-Westfalen": "NW",
+    "Rheinland-Pfalz": "RP",
+    "Saarland": "SL",
+    "Sachsen": "SN",
+    "Sachsen-Anhalt": "ST",
+    "Schleswig-Holstein": "SH",
+    "Thüringen": "TH",
+    "Ausschließliche Wirtschaftszone": "AWZ",
 }
 
 # Status value mapping to English
@@ -32,6 +55,8 @@ STATUS_MAP = {
     "In Planung":   "planned",
     "Geplant":      "planned",
     "Stillgelegt":  "decommissioned",
+    "Endgültig stillgelegt": "decommissioned",
+    "Vorübergehend stillgelegt": "decommissioned",
 }
 
 # Valid statuses to keep
@@ -44,14 +69,18 @@ def _match_columns(df):
     Returns a renamed DataFrame and prints what was matched.
     """
     rename_map = {}
+    matched_source_cols = set()
 
     for target_name, patterns in COLUMN_PATTERNS.items():
         matched = False
         for col in df.columns:
+            if col in matched_source_cols:
+                continue
             for pattern in patterns:
                 if re.search(pattern, col, re.IGNORECASE):
                     rename_map[col] = target_name
-                    print(f"  Column matched: '{col}' → '{target_name}'")
+                    matched_source_cols.add(col)
+                    print(f"  Column matched: '{col}' -> '{target_name}'")
                     matched = True
                     break
             if matched:
@@ -74,13 +103,19 @@ def parse_wind_plants():
 
     print(f"Reading {csv_path}...")
     df = pd.read_csv(csv_path, comment="#", dtype=str)
-    print(f"Raw rows: {len(df)}, columns: {list(df.columns)}")
+    print(f"Raw rows: {len(df)}, columns: {len(df.columns)}")
 
-    # Step 1: Rename columns by partial string matching
+    # Step 1: Filter onshore wind if offshore designation column exists
+    if "WindAnLandOderAufSee" in df.columns:
+        before_onshore = len(df)
+        df = df[df["WindAnLandOderAufSee"].str.contains("Land", na=False)]
+        print(f"Filtered to Onshore wind: {before_onshore} -> {len(df)} rows")
+
+    # Step 2: Rename columns by matching
     print("\nColumn matching:")
     df = _match_columns(df)
 
-    # Step 2: Apply transformations
+    # Step 3: Apply transformations
 
     # Convert kW to MW
     if "bruttoleistung_kw" in df.columns:
@@ -96,9 +131,13 @@ def parse_wind_plants():
         df["nettonennleistung_mw"] = np.nan
 
     # Parse dates
-    for date_col in ["inbetriebnahmedatum", "registrierungsdatum", "last_updated"]:
+    for date_col in ["inbetriebnahmedatum", "planned_date", "registrierungsdatum", "last_updated"]:
         if date_col in df.columns:
             df[date_col] = pd.to_datetime(df[date_col], errors="coerce").dt.date
+
+    # For planned plants without commissioning date, use planned date
+    if "inbetriebnahmedatum" in df.columns and "planned_date" in df.columns:
+        df["inbetriebnahmedatum"] = df["inbetriebnahmedatum"].fillna(df["planned_date"])
 
     # Clean postleitzahl: strip whitespace, zero-pad to 5 digits
     if "postleitzahl" in df.columns:
@@ -110,25 +149,25 @@ def parse_wind_plants():
             .str.zfill(5)
         )
 
-    # Step 3: Filter
+    # Step 4: Filter
 
     # Keep only wind energy
     if "energy_source" in df.columns:
         before = len(df)
         df = df[df["energy_source"].str.contains("Wind", case=False, na=False)]
-        print(f"\nFiltered to Wind energy: {before} → {len(df)} rows")
+        print(f"\nFiltered to Wind energy: {before} -> {len(df)} rows")
 
     # Keep only valid statuses
     if "betriebs_status" in df.columns:
         before = len(df)
         df = df[df["betriebs_status"].isin(VALID_STATUSES)]
-        print(f"Filtered to valid statuses: {before} → {len(df)} rows")
+        print(f"Filtered to valid statuses: {before} -> {len(df)} rows")
 
     # Drop rows where mastr_id is null
     if "mastr_id" in df.columns:
         before = len(df)
         df = df.dropna(subset=["mastr_id"])
-        print(f"Dropped null mastr_id: {before} → {len(df)} rows")
+        print(f"Dropped null mastr_id: {before} -> {len(df)} rows")
 
     # Drop duplicate mastr_id keeping most recently updated
     if "mastr_id" in df.columns:
@@ -139,40 +178,48 @@ def parse_wind_plants():
             )
         else:
             df = df.drop_duplicates(subset=["mastr_id"], keep="first")
-        print(f"Deduplicated by mastr_id: {before} → {len(df)} rows")
+        print(f"Deduplicated by mastr_id: {before} -> {len(df)} rows")
 
-    # Step 4: Map status values to English
+    # Step 5: Map status values to English
     if "betriebs_status" in df.columns:
         df["betriebs_status"] = df["betriebs_status"].map(STATUS_MAP).fillna("unknown")
 
-    # Step 5: Join with PLZ lookup for Bundesland
-    plz_path = "reference/plz_bundesland.csv"
-    if os.path.exists(plz_path):
-        plz_df = pd.read_csv(plz_path, dtype=str)
-        plz_df["plz"] = plz_df["plz"].astype(str).str.strip().str.zfill(5)
-
-        before_cols = set(df.columns)
-        df = df.merge(plz_df, left_on="postleitzahl", right_on="plz", how="left")
-
-        # Clean up: use the joined columns
-        if "bundesland" not in before_cols and "bundesland" in df.columns:
-            pass  # Already from the join
-        if "plz" in df.columns and "postleitzahl" in df.columns:
-            df = df.drop(columns=["plz"], errors="ignore")
-
-        no_match = df["bundesland"].isna().sum()
-        df["bundesland"] = df["bundesland"].fillna("Unbekannt")
-        df["bundesland_code"] = df["bundesland_code"].fillna("XX")
-        print(f"\nPLZ join: {no_match} rows had no Bundesland match")
+    # Step 6: Map Bundesland & Bundesland code
+    if "bundesland" in df.columns:
+        df["bundesland_code"] = df["bundesland"].map(BUNDESLAND_CODES).fillna("XX")
     else:
-        print(f"\nWarning: PLZ lookup file not found at {plz_path}")
         df["bundesland"] = "Unbekannt"
         df["bundesland_code"] = "XX"
 
-    # Step 6: Add source_id
+    # If any Bundesland is missing, join with reference PLZ
+    missing_bl = df["bundesland"].isna() | (df["bundesland"] == "Unbekannt")
+    if missing_bl.any():
+        plz_path = "reference/plz_bundesland.csv"
+        if os.path.exists(plz_path):
+            plz_df = pd.read_csv(plz_path, dtype=str)
+            plz_df["plz"] = plz_df["plz"].astype(str).str.strip().str.zfill(5)
+            plz_map = dict(zip(plz_df["plz"], plz_df["bundesland"]))
+            code_map = dict(zip(plz_df["plz"], plz_df["bundesland_code"]))
+
+            df.loc[missing_bl, "bundesland"] = df.loc[missing_bl, "postleitzahl"].map(plz_map).fillna("Unbekannt")
+            df.loc[missing_bl, "bundesland_code"] = df.loc[missing_bl, "postleitzahl"].map(code_map).fillna("XX")
+
+    # Step 7: Ensure standard output columns match DuckDB wind_plants schema
     df["source_id"] = "mastr_wind"
 
-    # Step 7: Print summary
+    expected_cols = [
+        "mastr_id", "display_name", "operator_name", "betriebs_status",
+        "energy_source", "inbetriebnahmedatum", "registrierungsdatum",
+        "postleitzahl", "bruttoleistung_kw", "nettonennleistung_kw",
+        "bruttoleistung_mw", "nettonennleistung_mw", "bundesland",
+        "bundesland_code", "source_id", "last_updated"
+    ]
+
+    for col in expected_cols:
+        if col not in df.columns:
+            df[col] = np.nan
+
+    df = df[expected_cols]
     print("\n" + "=" * 60)
     print("PARSE SUMMARY")
     print("=" * 60)

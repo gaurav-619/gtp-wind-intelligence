@@ -21,13 +21,17 @@ def build_snapshots(conn):
     # Drop existing snapshots for a clean rebuild
     conn.execute("DELETE FROM snapshots")
 
-    # Get all distinct years from wind_plants
+    today = date.today()
+
+    # Get operating commissioning years up to current year (focus on 2000 to current year)
     years = conn.execute("""
         SELECT DISTINCT YEAR(inbetriebnahmedatum) as yr 
         FROM wind_plants 
         WHERE inbetriebnahmedatum IS NOT NULL
+        AND YEAR(inbetriebnahmedatum) >= 2000
+        AND YEAR(inbetriebnahmedatum) <= ?
         ORDER BY yr
-    """).fetchdf()
+    """, [today.year]).fetchdf()
 
     if years.empty:
         print("No data with commissioning dates found. Skipping snapshots.")
@@ -35,7 +39,7 @@ def build_snapshots(conn):
                          "No commissioning dates in wind_plants")
         return
 
-    year_list = years["yr"].tolist()
+    year_list = [int(y) for y in years["yr"].tolist()]
 
     # Get all distinct Bundesländer
     states = conn.execute("""
@@ -45,15 +49,12 @@ def build_snapshots(conn):
     """).fetchdf()
 
     all_snapshots = []
-    today = date.today()
 
     for _, state_row in states.iterrows():
         bl = state_row["bundesland"]
         bl_code = state_row["bundesland_code"]
 
         for yr in year_list:
-            yr = int(yr)
-
             # Cumulative installed MW (sum of all operating plants commissioned up to this year)
             installed = conn.execute("""
                 SELECT 
@@ -96,12 +97,12 @@ def build_snapshots(conn):
             """, [bl, yr]).fetchone()
 
             median_permit_days = permit[0] if permit[0] is not None else None
-
             snapshot_id = f"{bl_code}_{yr}"
+            snapshot_dt = today if yr == today.year else date(yr, 12, 31)
 
             all_snapshots.append({
                 "snapshot_id": snapshot_id,
-                "snapshot_date": date(yr, 12, 31) if yr < today.year else today,
+                "snapshot_date": snapshot_dt,
                 "bundesland": bl,
                 "bundesland_code": bl_code,
                 "energy_source": "Wind",
@@ -115,8 +116,6 @@ def build_snapshots(conn):
 
     # Build national aggregate (Deutschland / DE) for each year
     for yr in year_list:
-        yr = int(yr)
-
         installed = conn.execute("""
             SELECT 
                 COALESCE(SUM(nettonennleistung_mw), 0) as total_mw,
@@ -149,10 +148,11 @@ def build_snapshots(conn):
         """, [yr]).fetchone()
 
         snapshot_id = f"DE_{yr}"
+        snapshot_dt = today if yr == today.year else date(yr, 12, 31)
 
         all_snapshots.append({
             "snapshot_id": snapshot_id,
-            "snapshot_date": date(yr, 12, 31) if yr < today.year else today,
+            "snapshot_date": snapshot_dt,
             "bundesland": "Deutschland",
             "bundesland_code": "DE",
             "energy_source": "Wind",

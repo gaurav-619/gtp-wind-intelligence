@@ -113,18 +113,46 @@ def fetch_plz_lookup():
         print(f"Downloaded real PLZ data: {len(df)} unique postal codes")
 
     except Exception as e:
-        print(f"PLZ download failed: {e}. Using fallback data.")
+        print(f"PLZ download from suche-postleitzahl.org failed: {e}. Extracting from real MaStR data...")
 
-        # FALLBACK: hardcoded representative PLZ covering all 16 states
+        # Extract real postal codes directly from open-mastr database if available
+        home_dir = os.path.expanduser("~")
+        sqlite_path = os.path.join(home_dir, ".open-MaStR", "data", "sqlite", "open-mastr.db")
+
+        mastr_plz_df = None
+        if os.path.exists(sqlite_path):
+            try:
+                import sqlite3
+                conn = sqlite3.connect(sqlite_path)
+                mastr_plz_df = pd.read_sql_query(
+                    "SELECT DISTINCT Postleitzahl as plz, Bundesland as bundesland "
+                    "FROM EinheitenWind WHERE Postleitzahl IS NOT NULL AND Bundesland IS NOT NULL",
+                    conn
+                )
+                conn.close()
+                mastr_plz_df["plz"] = mastr_plz_df["plz"].astype(str).str.strip().str.zfill(5)
+                mastr_plz_df["bundesland_code"] = mastr_plz_df["bundesland"].map(BUNDESLAND_CODES)
+                mastr_plz_df = mastr_plz_df.dropna(subset=["bundesland_code"]).drop_duplicates(subset=["plz"])
+                print(f"Extracted {len(mastr_plz_df)} real postal codes directly from MaStR turbine records")
+            except Exception as ex:
+                print(f"Could not extract PLZ from open-mastr SQLite: {ex}")
+
+        # Combine with representative PLZ covering all 16 states
         rows = []
         for plz, code in FALLBACK_PLZ.items():
             rows.append({
                 "plz": plz,
-                "bundesland": CODE_TO_BUNDESLAND[code],
+                "bundesland": CODE_TO_BUNDESLAND.get(code, "Unbekannt"),
                 "bundesland_code": code
             })
-        df = pd.DataFrame(rows)
-        source_note = "source: fallback hardcoded PLZ data (representative only)"
+        fallback_df = pd.DataFrame(rows)
+
+        if mastr_plz_df is not None and len(mastr_plz_df) > 0:
+            df = pd.concat([mastr_plz_df, fallback_df]).drop_duplicates(subset=["plz"])
+            source_note = f"source: real MaStR turbine postal codes ({len(df)} entries)"
+        else:
+            df = fallback_df
+            source_note = "source: fallback hardcoded PLZ data (representative only)"
 
     df.to_csv("reference/plz_bundesland.csv", index=False)
     print(f"Saved {len(df)} PLZ entries to reference/plz_bundesland.csv")
@@ -251,29 +279,56 @@ def _generate_synthetic_data(n=500):
 def fetch_mastr_wind():
     """
     Download wind plant data using the open-mastr package.
-    Falls back to synthetic data if open-mastr is not available.
+    Extracts directly from the open-mastr SQLite database, which holds real BNetzA data.
+    Falls back to synthetic data only if open-mastr data is completely missing.
     """
     os.makedirs("data/raw", exist_ok=True)
     csv_path = "data/raw/mastr_wind_raw.csv"
 
-    # Attempt 1: open-mastr
+    # Step 1: Check if open-mastr SQLite DB already contains the downloaded data
+    home_dir = os.path.expanduser("~")
+    sqlite_path = os.path.join(home_dir, ".open-MaStR", "data", "sqlite", "open-mastr.db")
+
+    if os.path.exists(sqlite_path):
+        try:
+            import sqlite3
+            conn = sqlite3.connect(sqlite_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='EinheitenWind'")
+            if cursor.fetchone()[0] > 0:
+                print(f"Reading real MaStR wind data from open-mastr database ({sqlite_path})...")
+                df = pd.read_sql_query("SELECT * FROM EinheitenWind", conn)
+                conn.close()
+                if len(df) > 100:
+                    df.to_csv(csv_path, index=False)
+                    print(f"Successfully exported {len(df)} real MaStR wind turbines to {csv_path}")
+                    return csv_path
+            conn.close()
+        except Exception as e:
+            print(f"Error reading from open-mastr SQLite DB: {e}")
+
+    # Step 2: Download via open_mastr
     try:
         from open_mastr import Mastr
-
         db = Mastr()
+        print("Initiating open-mastr bulk download for wind...")
         db.download(data=["wind"])
-        df = db.to_dataframe(data="wind")
 
-        if df is not None and len(df) > 100:
-            df.to_csv(csv_path, index=False)
-            print(f"Downloaded real MaStR data: {len(df)} rows")
-            return csv_path
+        if os.path.exists(sqlite_path):
+            import sqlite3
+            conn = sqlite3.connect(sqlite_path)
+            df = pd.read_sql_query("SELECT * FROM EinheitenWind", conn)
+            conn.close()
+            if len(df) > 100:
+                df.to_csv(csv_path, index=False)
+                print(f"Downloaded and exported {len(df)} real MaStR rows")
+                return csv_path
 
     except Exception as e:
-        print(f"open-mastr failed: {e}. Using synthetic fallback.")
+        print(f"open-mastr download failed: {e}. Using synthetic fallback.")
 
     # Fallback: synthetic dataset
-    print("Generating synthetic wind plant data for prototype...")
+    print("Generating synthetic wind plant data for prototype fallback...")
     df = _generate_synthetic_data(500)
 
     # Add comment header to indicate synthetic data
