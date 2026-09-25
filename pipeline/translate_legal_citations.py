@@ -14,6 +14,8 @@ import duckdb
 from dotenv import load_dotenv
 from pipeline.load import log_pipeline_run
 
+env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+load_dotenv(dotenv_path=env_path)
 load_dotenv()
 
 DEEPL_ENDPOINT = "https://api-free.deepl.com/v2/translate"
