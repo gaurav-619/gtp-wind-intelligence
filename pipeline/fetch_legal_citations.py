@@ -41,9 +41,9 @@ STATUTE_CONFIGS = [
         "citation_id": "eeg_p1",
         "law_name": "EEG 2023",
         "paragraph": "§ 1",
-        "topic": "Ziel des Gesetzes (80% Erneuerbare bis 2030)",
+        "topic": "Ziel des Gesetzes (Transformation, 80% Erneuerbare bis 2030, Ausbaupfad)",
         "url": "https://www.gesetze-im-internet.de/eeg_2014/__1.html",
-        "absatz_prefix": "(1)",
+        "absatz_prefix": "ALL",
     },
     {
         "citation_id": "eeg_p4",
@@ -137,14 +137,17 @@ def fetch_and_seed_legal_citations(conn=None) -> list[dict]:
 
             matched_text = None
             if jur_divs:
-                for div in jur_divs:
-                    clean_text = div.get_text(separator=" ", strip=True)
-                    if prefix in clean_text or clean_text.startswith(prefix):
-                        matched_text = clean_text
-                        break
-                # If no prefix matched, use the first jurAbsatz
-                if not matched_text and len(jur_divs) > 0:
-                    matched_text = jur_divs[0].get_text(separator=" ", strip=True)
+                if prefix == "ALL":
+                    matched_text = "\n\n".join(d.get_text(separator=" ", strip=True) for d in jur_divs)
+                else:
+                    for div in jur_divs:
+                        clean_text = div.get_text(separator=" ", strip=True)
+                        if prefix in clean_text or clean_text.startswith(prefix):
+                            matched_text = clean_text
+                            break
+                    # If no prefix matched, use the first jurAbsatz
+                    if not matched_text and len(jur_divs) > 0:
+                        matched_text = jur_divs[0].get_text(separator=" ", strip=True)
 
             if not matched_text:
                 print(f"  [WARN] No div.jurAbsatz found for {cid}")
@@ -169,18 +172,15 @@ def fetch_and_seed_legal_citations(conn=None) -> list[dict]:
         except Exception as e:
             print(f"  [ERROR] Failed to fetch {cid}: {e}")
 
-    # Map both mastrv_p5 and mastrv_p3 aliases to the verbatim § 5 Absatz 5 text
-    # (correcting any legacy citations to § 3 with the actual § 5 Abs. 5 1-month registration rule)
+    # Map mastrv_p5 alias to the primary § 5 Absatz 5 provision
     conn.execute("""
         INSERT OR REPLACE INTO legal_citations 
         SELECT 'mastrv_p5', law_name, paragraph, topic, official_text_de, source_url, verified_at
         FROM legal_citations WHERE citation_id = 'mastrv_p5_abs5'
     """)
-    conn.execute("""
-        INSERT OR REPLACE INTO legal_citations 
-        SELECT 'mastrv_p3', law_name, '§ 5 Abs. 5 (vormals § 3)', 'Ein-Monats-Frist zur Registrierung nach Inbetriebnahme', official_text_de, source_url, verified_at
-        FROM legal_citations WHERE citation_id = 'mastrv_p5_abs5'
-    """)
+    # Delete mastrv_p3 outright: § 3 was an erroneous citation for the 1-month registration deadline,
+    # which is authoritatively governed by § 5 Abs. 5 MaStRV.
+    conn.execute("DELETE FROM legal_citations WHERE citation_id = 'mastrv_p3'")
 
     # Log to pipeline_runs
     log_pipeline_run(

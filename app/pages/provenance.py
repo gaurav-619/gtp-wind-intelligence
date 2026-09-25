@@ -127,7 +127,7 @@ st.divider()
 
 st.subheader("⚖️ Legal Citation Audit (Statutory Safeguard Layer)")
 st.caption(
-    "Specific statutory citations (e.g. § 3 MaStRV, § 4 EEG 2023, § 4 BImSchG) "
+    "Specific statutory citations (e.g. § 5 MaStRV, § 4 EEG 2023, § 4 BImSchG) "
     "are treated like Tier 2 claims. Only paragraphs verified against "
     "gesetze-im-internet.de are cleared as fact; unmatched references are flagged."
 )
@@ -156,7 +156,7 @@ st.markdown("##### Scan Text for Legal Citations")
 sample_default = (
     "Gemäß § 4 EEG 2023 soll der Ausbaupfad für Windenergie an Land 115 GW im Jahr 2030 erreichen. "
     "Für die Genehmigung gilt § 4 BImSchG sowie § 16b BImSchG für Repowering. "
-    "Die Registrierung erfolgt nach § 3 MaStRV. "
+    "Die Registrierung erfolgt nach § 5 Absatz 5 MaStRV innerhalb eines Monats. "
     "Dagegen ist § 99 FantasieGesetz eine nicht verifizierte Norm."
 )
 input_text = st.text_area(

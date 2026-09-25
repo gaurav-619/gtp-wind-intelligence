@@ -233,7 +233,7 @@ CITATION_REGEX = re.compile(
 def detect_legal_citations(text: str) -> list[dict]:
     """
     Detect regulatory and statutory citations in text using regex.
-    Catches patterns like '§ 5 Absatz 1 MaStRV', '§ 3 MaStRV', '§ 4 EEG 2023', '§ 4 BImSchG'.
+    Catches patterns like '§ 5 Absatz 5 MaStRV', '§ 5 MaStRV', '§ 4 EEG 2023', '§ 4 BImSchG'.
     """
     if not text:
         return []
