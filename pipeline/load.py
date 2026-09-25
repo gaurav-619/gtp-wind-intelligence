@@ -195,37 +195,12 @@ def init_db():
          'Quarterly press releases from Nordex SE, German language')
     """)
 
-    # Seed verified statutory provisions from gesetze-im-internet.de
-    conn.execute("""
-        INSERT OR REPLACE INTO legal_citations VALUES
-        ('mastrv_p3', 'MaStRV', '§ 3', 'Registrierungspflicht von Einheiten und Anlagen',
-         'Betreiber von Einheiten müssen ihre Einheiten im Marktstammdatenregister registrieren. Die Registrierung muss unverzüglich, spätestens jedoch einen Monat nach der Inbetriebnahme der Einheit erfolgen.',
-         'https://www.gesetze-im-internet.de/mastrv/__3.html', '2026-09-25'),
-        ('mastrv_p5', 'MaStRV', '§ 5', 'Fristen für die Registrierung von Projekten',
-         'Projekte für Einheiten, die einer Genehmigung nach dem Bundes-Immissionsschutzgesetz bedürfen, können registriert werden, sobald die Genehmigung erteilt worden ist.',
-         'https://www.gesetze-im-internet.de/mastrv/__5.html', '2026-09-25'),
-        ('eeg_p1', 'EEG 2023', '§ 1', 'Ziel des Gesetzes (80% Erneuerbare bis 2030)',
-         'Ziel dieses Gesetzes ist es, den Anteil des aus erneuerbaren Energien erzeugten Stroms am Bruttostromverbrauch bis zum Jahr 2030 auf mindestens 80 Prozent zu steigern.',
-         'https://www.gesetze-im-internet.de/eeg_2014/__1.html', '2026-09-25'),
-        ('eeg_p4', 'EEG 2023', '§ 4', 'Gesetzliche Ausbaupfade für Windenergie an Land (115 GW bis 2030, 160 GW bis 2040)',
-         'Der Ausbau der erneuerbaren Energien soll stetig, kosteneffizient und netzverträglich erfolgen. Hierzu sollen folgende Ausbaupfade erreicht werden: für Windenergie an Land eine installierte Leistung von 115 Gigawatt im Jahr 2030 und 160 Gigawatt im Jahr 2040.',
-         'https://www.gesetze-im-internet.de/eeg_2014/__4.html', '2026-09-25'),
-        ('bimschg_p4', 'BImSchG', '§ 4', 'Genehmigungsbedürftige Anlagen',
-         'Die Errichtung und der Betrieb von Anlagen, die auf Grund ihrer Beschaffenheit oder ihres Betriebs in besonderem Maße geeignet sind, schädliche Umwelteinwirkungen herbeizuführen oder in anderer Weise die Allgemeinheit oder die Nachbarschaft zu gefährden, bedürfen einer Genehmigung.',
-         'https://www.gesetze-im-internet.de/bimschg/__4.html', '2026-09-25'),
-        ('bimschg_p6', 'BImSchG', '§ 6', 'Genehmigungsvoraussetzungen für Windkraftanlagen',
-         'Die Genehmigung ist zu erteilen, wenn sichergestellt ist, dass die sich aus § 5 und einer auf Grund des § 7 erlassenen Rechtsverordnung ergebenden Pflichten erfüllt werden und andere öffentlich-rechtliche Vorschriften und Belange des Arbeitsschutzes der Errichtung und dem Betrieb der Anlage nicht entgegenstehen.',
-         'https://www.gesetze-im-internet.de/bimschg/__6.html', '2026-09-25'),
-        ('windbg_p3', 'WindBG', '§ 3', 'Flächenbeitragswerte der Länder (Wind-an-Land-Gesetz)',
-         'Die Länder haben sicherzustellen, dass die Flächenbeitragswerte nach Anlage 1 für Windenergiegebiete bis zu den dort genannten Stichtagen erreicht werden.',
-         'https://www.gesetze-im-internet.de/windbg/__3.html', '2026-09-25'),
-        ('enwg_p111e', 'EnWG', '§ 111e', 'Marktstammdatenregister gesetzliche Grundlage',
-         'Zur Verbesserung der Transparenz und der Marktbeobachtung auf den Elektrizitäts- und Gasmärkten errichtet und betreibt die Bundesnetzagentur ein Marktstammdatenregister.',
-         'https://www.gesetze-im-internet.de/enwg_2005/__111e.html', '2026-09-25'),
-        ('bimschg_p16b', 'BImSchG', '§ 16b', 'Erleichterungen für das Repowering von Windenergieanlagen',
-         'Wird eine Windenergieanlage repowert, so ist auf Antrag des Vorhabenträgers das Genehmigungsverfahren im vereinfachten Verfahren nach § 19 durchzuführen.',
-         'https://www.gesetze-im-internet.de/bimschg/__16b.html', '2026-09-25')
-    """)
+    # Seed verified statutory provisions live from gesetze-im-internet.de
+    try:
+        from pipeline.fetch_legal_citations import fetch_and_seed_legal_citations
+        fetch_and_seed_legal_citations(conn)
+    except Exception as e:
+        print(f"Warning: could not live-fetch legal citations during init_db: {e}")
 
     print("Tables created and sources seeded.")
     conn.close()
