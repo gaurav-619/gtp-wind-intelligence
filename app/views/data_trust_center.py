@@ -215,20 +215,34 @@ def render_data_trust_center():
                         st.markdown("**🇬🇧 Machine Translation (EN):**")
                         st.text(row["source_sentence_en"] or "N/A")
 
-                    st.caption(f"Source URL: {row['document_url']} · Model: {row['extraction_model']} · Confidence: {row['confidence_score']:.2f}")
+                    st.caption(f"Extraction Model: {row['extraction_model']} · Extraction Confidence: {row['confidence_score']:.2f}")
 
-                    if st.button("✓ Mark as Verified (Human Approved)", key=f"verify_claim_{row['claim_id']}"):
-                        verify_claim(row["claim_id"])
-                        st.success("Claim approved and verified!")
-                        st.rerun()
+                    act_col1, act_col2 = st.columns([1, 1])
+                    with act_col1:
+                        if st.button("✓ Mark as Verified (Human Approved)", key=f"verify_claim_{row['claim_id']}", use_container_width=True):
+                            verify_claim(row["claim_id"])
+                            st.success("Claim approved and verified!")
+                            st.rerun()
+                    with act_col2:
+                        doc_url = row.get("document_url")
+                        if doc_url and str(doc_url).startswith("http"):
+                            st.link_button("↗️ Open Original Source Document", doc_url, use_container_width=True)
 
         if not verified.empty:
             st.markdown("##### ✅ Approved & Citable Claims:")
             for _, row in verified.iterrows():
-                st.success(
-                    f"✓ {row['entity']} · {row['metric']} · {row['period']}: {row['value']} {row['unit']} "
-                    f"(Approved for institutional client citation)"
-                )
+                with st.expander(f"✓ {row['entity']} · {row['metric']} · {row['period']}: {row['value']} {row['unit']} (Approved for citation)"):
+                    st.success(f"**Approved Claim:** {row['value']} {row['unit']} ({row['metric']}, {row['period']})")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown("**🇩🇪 Verbatim Source (DE):**")
+                        st.info(row["source_sentence_de"] or "N/A")
+                    with col2:
+                        st.markdown("**🇬🇧 Machine Translation (EN):**")
+                        st.text(row["source_sentence_en"] or "N/A")
+                    doc_url = row.get("document_url")
+                    if doc_url and str(doc_url).startswith("http"):
+                        st.link_button("↗️ Open Original Source Filing", doc_url)
 
     st.markdown("---")
 
@@ -245,6 +259,21 @@ def render_data_trust_center():
         summary_cols = ["law_name", "paragraph", "topic", "translation_verified", "translation_model", "back_translation_similarity"]
         avail_cols = [c for c in summary_cols if c in legal_df.columns]
         st.dataframe(legal_df[avail_cols], use_container_width=True, hide_index=True)
+
+        with st.expander("🔍 Inspect Full Statutory Text & Official Federal Law Links"):
+            for _, lrow in legal_df.iterrows():
+                st.markdown(f"**{lrow['law_name']} {lrow['paragraph']}** — *{lrow['topic']}*")
+                lcol1, lcol2 = st.columns(2)
+                with lcol1:
+                    st.caption("🇩🇪 Official German Statute Text:")
+                    st.code(lrow.get("official_text_de", "N/A"), language="markdown")
+                with lcol2:
+                    st.caption("🇬🇧 English Translated Meaning:")
+                    st.code(lrow.get("official_text_en", "N/A"), language="markdown")
+                s_url = lrow.get("source_url")
+                if s_url and str(s_url).startswith("http"):
+                    st.link_button(f"↗️ Open {lrow['law_name']} {lrow['paragraph']} on gesetze-im-internet.de", s_url)
+                st.markdown("---")
     else:
         st.info("Legal citations repository initializing.")
 
