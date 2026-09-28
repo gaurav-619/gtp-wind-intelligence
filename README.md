@@ -82,7 +82,6 @@ For detailed technical specifications, mathematical formulas, and audit logs, re
 | **[`docs/EEG_SPLIT_AND_BAYERN_PERMITTING_AUDIT.md`](docs/EEG_SPLIT_AND_BAYERN_PERMITTING_AUDIT.md)** | In-depth legal and analytical reconciliation of the 13.1 GW vs. 14.1 GW EEG split and Bayern's 30.5-month permitting duration. |
 | **[`docs/CODE_REVISION_LOG.md`](docs/CODE_REVISION_LOG.md)** | File-by-file audit and change history for all code and configuration files. |
 | **[`docs/SYSTEM_ARCHITECTURE_AND_DEEP_DIVE.md`](docs/SYSTEM_ARCHITECTURE_AND_DEEP_DIVE.md)** | Deep-dive on DuckDB columnar OLAP engine, MaStR joins, parent rollup heuristics, and multilingual RAG pipelines. |
-| **[`docs/HOW_IT_WORKS_FOR_CONSULTANTS.md`](docs/HOW_IT_WORKS_FOR_CONSULTANTS.md)** | Presentation playbook, client pitch talking points, and domain context for executive meetings. |
 | **[`docs/PIPELINE_EXECUTION_LOG.md`](docs/PIPELINE_EXECUTION_LOG.md)** | Pipeline run history, SHA-256 integrity hashes, row ingestion rates, and stage runtimes. |
 | **[`docs/VERIFICATION_AUDIT_REPORT.md`](docs/VERIFICATION_AUDIT_REPORT.md)** | Automated test results validating database constraints, widget decoupling, and error handling. |
 

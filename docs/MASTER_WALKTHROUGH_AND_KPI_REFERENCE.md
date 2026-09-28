@@ -60,7 +60,6 @@ gtp-wind-intelligence/
 │   ├── MASTER_WALKTHROUGH_AND_KPI_REFERENCE.md # This comprehensive manual
 │   ├── SYSTEM_ARCHITECTURE_AND_DEEP_DIVE.md    # Master Architecture Blueprint
 │   ├── CODE_REVISION_LOG.md        # File-by-file changelog & audit cross-references
-│   ├── HOW_IT_WORKS_FOR_CONSULTANTS.md # Worked acquisition case study
 │   ├── PIPELINE_EXECUTION_LOG.md   # Step-by-step audit run benchmarks & row counts
 │   └── VERIFICATION_AUDIT_REPORT.md# Reconciled numbers & mathematical proofs
 ├── db/gtp.duckdb                   # Central analytical warehouse (10 core tables)
