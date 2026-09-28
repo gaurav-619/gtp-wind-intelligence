@@ -20,7 +20,7 @@
    - 2.3 Operator Intelligence & Repowering Radar: Operator Concentration, Parent Rollup & EEG Subsidy Cliff (Top 20 & 13.1 GW Repowering Cliff)
    - 2.4 Storage Co-Location Screener: Battery Energy Storage Systems (BESS) Co-Location (54.51 MW Co-located)
    - 2.5 Tier 2 Disclosures: Commercial OEM Financial & Operational Intelligence (Nordex Q1 2024 Claims)
-3. [System Architecture & The Two-Tier Data Paradigm](#3-system-architecture--the-two-tier-data-paradigm)
+3. [System Architecture & The Two-Tier Data Governance Architecture](#3-system-architecture--the-two-tier-data-governance-architecture)
    - 3.1 High-Level Architecture Diagram (Mermaid)
    - 3.2 Tier 1 vs. Tier 2 Philosophy: Hard Facts vs. Corporate Disclosures
 4. [Technology Stack & Architectural Decisions (Why We Chose Them)](#4-technology-stack--architectural-decisions-why-we-chose-them)
@@ -305,7 +305,7 @@ Using local multilingual semantic embeddings + OpenRouter LLM fact extraction on
 
 ---
 
-## 3. System Architecture & The Two-Tier Data Paradigm
+## 3. System Architecture & The Two-Tier Data Governance Architecture
 
 ### 3.1 High-Level Architecture Diagram (Mermaid)
 
@@ -728,7 +728,7 @@ The application is built on Streamlit 1.50+ using an atomic, top-navigation arch
 - Includes a searchable operator lookup tool with asset-level drill-down.
 
 ### 7.8 Storage Co-Location Screener (`app/views/storage_colocation.py`)
-- **Subtitle:** *Where is battery storage co-deployed with wind generation? Which regional hubs offer the strongest grid-connection synergy for hybrid BESS retrofit?*
+- **Subtitle:** *Where is battery storage co-deployed with wind generation? Which regional hubs offer the strongest grid-connection capacity for hybrid BESS retrofit?*
 - Evaluates operating co-located BESS (54.5 MW across 637 battery units, 0.08% penetration) and forward planned storage pipeline.
 - Features an interactive click-to-filter scatter plot (Wind MW vs. BESS MW) synchronized with a state selector and asset screener table.
 
@@ -757,7 +757,7 @@ The platform is automated via GitHub Actions:
 3. **OpenRouter Model Endpoint Lifecycle:**
    - Replaced retired endpoints with `inclusionai/ling-3.0-flash-fin:free`, implementing an automated multi-model fallback chain to absorb 429 rate limit spikes.
 4. **Direct open-mastr SQLite Ingestion:**
-   - Overcame the missing `Mastr.to_dataframe()` API method by connecting directly to the underlying `open-mastr.db` SQLite database, unlocking all 43,625 real turbines.
+   - Overcame the missing `Mastr.to_dataframe()` API method by connecting directly to the underlying `open-mastr.db` SQLite database, ingesting all 43,625 real turbines.
 5. **Regex Collision Prevention:**
    - Anchored column matching regexes in `parse.py` to prevent `NetzbetreiberpruefungStatus` from misidentifying as `betriebs_status` or `operator_name`.
 6. **Future Planned Date Leakage in Snapshots:**

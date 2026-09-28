@@ -173,7 +173,7 @@ Every fix made during this project's audit history is cross-referenced below to 
   - `validate_legal_citation(citation, conn) -> tuple[bool, dict | None]`: Validates detected citation against official `legal_citations` registry.
   - `verify_and_annotate_text_citations(text, conn, replace_inline=False) -> tuple[str, list[dict], int]`: Scans text, validates citations, and attaches statutory audit metadata.
   - `extract_claims_from_document(doc, conn=None) -> list`: Orchestrates full metric extraction across all document chunks.
-  - `_parse_json_response(response) -> dict`: Robust JSON parser stripping markdown backticks and handling malformed LLM responses.
+  - `_parse_json_response(response) -> dict`: Defensive JSON parser stripping markdown backticks and handling malformed LLM responses.
 - **Known Limitations:** Depends on external OpenRouter API availability when running in cloud mode.
 
 #### 9. `pipeline/fetch_legal_citations.py`
@@ -392,19 +392,19 @@ Every fix made during this project's audit history is cross-referenced below to 
 
 #### 34. `app/pages/q1_capacity.py`
 - **Status:** Removed this session.
-- **Reason for Removal:** Migrated and elevated to [`app/views/market_landscape.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/market_landscape.py).
+- **Reason for Removal:** Refactored and relocated to [`app/views/market_landscape.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/market_landscape.py).
 
 #### 35. `app/pages/q2_pipeline.py`
 - **Status:** Removed this session.
-- **Reason for Removal:** Migrated and elevated to [`app/views/pipeline_radar.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/pipeline_radar.py).
+- **Reason for Removal:** Refactored and relocated to [`app/views/pipeline_radar.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/pipeline_radar.py).
 
 #### 36. `app/pages/provenance.py`
 - **Status:** Removed this session.
-- **Reason for Removal:** Migrated and elevated to [`app/views/data_trust_center.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/data_trust_center.py).
+- **Reason for Removal:** Refactored and relocated to [`app/views/data_trust_center.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/data_trust_center.py).
 
 #### 37. `app/pages/q4_bess.py`
 - **Status:** Removed this session.
-- **Reason for Removal:** Migrated and elevated to [`app/views/storage_colocation.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/storage_colocation.py).
+- **Reason for Removal:** Refactored and relocated to [`app/views/storage_colocation.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/storage_colocation.py).
 
 ---
 

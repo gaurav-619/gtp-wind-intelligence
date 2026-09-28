@@ -210,7 +210,7 @@ def render_overview():
         {
             "icon": "🔋",
             "title": "Storage Co-Location Screener",
-            "decision": "Where is battery storage already co-deployed with wind generation, and which high-capacity wind hubs offer the strongest grid-connection synergy for hybrid BESS retrofit?",
+            "decision": "Where is battery storage already co-deployed with wind generation, and which high-capacity wind hubs offer the strongest grid-connection capacity for hybrid BESS retrofit?",
             "tier": "Tier 1 — Combined Unit Matching",
             "coverage": "1.48M BESS units matched against wind turbine hubs"
         },

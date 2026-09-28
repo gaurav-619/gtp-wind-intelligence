@@ -2,7 +2,7 @@
 app/views/storage_colocation.py
 Storage Co-Location Screener (formerly Q4 BESS).
 Commercial screening of battery energy storage systems (BESS) co-located
-with German onshore wind assets, hybrid project pipelines, and grid synergy candidates.
+with German onshore wind assets, hybrid project pipelines, and shared-grid connection candidates.
 """
 
 import streamlit as st
@@ -35,7 +35,7 @@ def clean_amp(val):
 def render_storage_colocation():
     render_page_header(
         title="🔋 Storage Co-Location Screener",
-        subtitle="Where is battery storage co-deployed with wind generation? Which regional hubs offer the strongest grid-connection synergy for hybrid BESS retrofit?",
+        subtitle="Where is battery storage co-deployed with wind generation? Which regional hubs offer the strongest grid-connection capacity for hybrid BESS retrofit?",
         data_source="Marktstammdatenregister (MaStR), Bundesnetzagentur",
         confidence_tier="Tier 1 — Official Registry Proxy Match",
         snapshot_date=get_latest_snapshot_date()
