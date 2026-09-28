@@ -13,7 +13,7 @@
 |---|---|---|:---:|
 | **Tier 1 Ingestion** | Real BNetzA MaStR registry data | Extracted 43,625 real wind turbines from `open-mastr.db` SQLite; 3,219 real postal codes directly harvested | **PASS** |
 | **Parsing & Cleaning** | Onshore wind only, clean status | Filtered 43,625 to 41,652 onshore, then 38,488 active/planned turbines; 0 unmapped states | **PASS** |
-| **Database Load** | 100% statutory data, zero synthetic | 38,488 rows in `wind_plants`; residual prototype rows purged; clean replacement on reload | **PASS** |
+| **Database Load** | 100% statutory registry data, zero artificial rows | 38,488 rows in `wind_plants`; residual prototype rows purged; clean replacement on reload | **PASS** |
 | **Snapshots Calculation** | Accurate cumulative sums & medians | 459 snapshot rows (2000–2026); Niedersachsen 14,428 MW operating, national 71,015 MW operating | **PASS** |
 | **Tier 2 RAG Extraction** | Real PDF extraction, multilingual vectors | 384-d dense vectors; extracted 3 claims from Nordex Q1 2024 via OpenRouter LLM | **PASS** |
 | **Data Provenance & Audit** | Bilingual German/English + human review | Verbatim quotes preserved; interactive "Mark as verified" toggle functional | **PASS** |
@@ -187,7 +187,7 @@ Final Output: 38,488 clean onshore wind turbine records
 
 | Criterion | Result | Evidence |
 |---|:---:|---|
-| **Tier 1 Official Data Only** | **YES** | `wind_plants` contains 38,488 real BNetzA turbines with `SEE...` IDs; 0 synthetic rows. |
+| **Tier 1 Official Data Only** | **YES** | `wind_plants` contains 38,488 real BNetzA turbines with `SEE...` IDs; 0 artificial/unverified rows. |
 | **Tier 2 RAG + Human-in-the-Loop** | **YES** | 3 claims extracted from real Nordex disclosure with verbatim German quotes; verification toggle working. |
 | **Source Provenance on Every Number** | **YES** | Every table links to `sources` (`mastr_wind`, `nordex_press`) with confidence tiers (1 or 2). |
 | **Zero Hardcoded / Mock Turbines** | **YES** | Pre-load delete statement ensures full replacement with real MaStR rows. |

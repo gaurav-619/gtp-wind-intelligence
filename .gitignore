@@ -1,8 +1,43 @@
+# Environment variables
 .env
-db/*.duckdb
-data/raw/*
-!data/raw/.gitkeep
+.env.local
+
+# Python caches
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# OS and temporary files
+.DS_Store
+Thumbs.db
+desktop.ini
+.tempmediaStorage/
+*.log
+
+# Raw data and large extract files (1.5GB+)
+data/raw/*
+!data/raw/.gitkeep
+data/exports/*.csv
+data/exports/*.xlsx
+!data/exports/.gitkeep
+
+# DuckDB backup files (Keep production db/gtp.duckdb tracked)
+db/*_backup_*.duckdb
+db/*_raw_*.duckdb
+db/*.duckdb.tmp*
+
+# Offline tooling caches
 .open-mastr/
 chroma/
+scratch/
+
+# Archives
+*.zip
+*.tar.gz

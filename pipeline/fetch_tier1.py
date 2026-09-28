@@ -181,106 +181,15 @@ def load_plz_lookup(conn):
 
 
 # --------------------------------------------------------------------------
-# MaStR wind plant data fetch (Prompt 4)
+# MaStR wind plant data fetch (Official BNetzA Data Only)
 # --------------------------------------------------------------------------
-
-# Real PLZ values for synthetic data generation, spread across all 16 states
-SAMPLE_PLZ = [
-    "10115", "20095", "28195", "30159", "40213", "44135", "50667", "55116",
-    "66111", "68159", "70173", "80331", "90402", "01067", "04109", "06108",
-    "14467", "18055", "24103", "39104", "99084", "34117", "54290", "32052",
-    "48143", "65185", "26122", "37073", "15230", "19053", "25524", "98527",
-]
-
-SAMPLE_OPERATORS = [
-    "Energiekontor AG", "wpd AG", "Enercon GmbH",
-    "Stadtwerke Hannover AG", "EnBW Energie Baden-Württemberg AG",
-    "RWE Renewables GmbH", "juwi AG", "PNE AG",
-    "ABO Wind AG", "VSB Neue Energien Deutschland GmbH",
-    "BayWa r.e. Wind GmbH", "UKA Umweltgerechte Kraftanlagen GmbH",
-    "Trianel Windkraftwerk GmbH", "Windpark Verwaltungs GmbH",
-    "Norderland GbR", "WPD Windmanager GmbH",
-]
-
-SAMPLE_CITIES = [
-    "Aurich", "Bremerhaven", "Cuxhaven", "Dithmarschen", "Emden",
-    "Flensburg", "Güstrow", "Husum", "Itzehoe", "Jever",
-    "Kiel", "Leer", "Magdeburg", "Nordenham", "Oldenburg",
-    "Prenzlau", "Quedlinburg", "Rostock", "Stralsund", "Trier",
-    "Uelzen", "Verden", "Wismar", "Xanten", "Zwickau",
-    "Aachen", "Bielefeld", "Cottbus", "Dresden", "Erfurt",
-    "Frankfurt (Oder)", "Göttingen", "Halle", "Jena", "Kassel",
-    "Leipzig", "Münster", "Neubrandenburg", "Osnabrück", "Potsdam",
-    "Schwerin", "Wilhelmshaven", "Wittenberg", "Dessau", "Stendal",
-    "Greifswald", "Pasewalk", "Parchim", "Rendsburg", "Heide",
-]
-
-
-def _generate_synthetic_data(n=500):
-    """
-    Generate synthetic wind plant data matching open-mastr output format.
-    FOR PROTOTYPE DEMONSTRATION ONLY.
-    """
-    random.seed(42)
-    np.random.seed(42)
-
-    rows = []
-    for i in range(n):
-        # Status distribution: 85% In Betrieb, 10% In Planung, 5% Stillgelegt
-        status_roll = random.random()
-        if status_roll < 0.85:
-            status = "In Betrieb"
-        elif status_roll < 0.95:
-            status = "In Planung"
-        else:
-            status = "Stillgelegt"
-
-        # Commissioning date range: 1995-01-01 to 2024-12-31
-        start_date = date(1995, 1, 1)
-        end_date = date(2024, 12, 31)
-        days_range = (end_date - start_date).days
-        inbetriebnahme = start_date + timedelta(days=random.randint(0, days_range))
-
-        # Registration date: after 2019-01-01, before Inbetriebnahme for operating plants
-        reg_start = date(2019, 1, 1)
-        if status == "In Betrieb" and inbetriebnahme > reg_start:
-            reg_days = (inbetriebnahme - reg_start).days
-            if reg_days > 0:
-                registrierung = reg_start + timedelta(days=random.randint(0, reg_days))
-            else:
-                registrierung = reg_start
-        else:
-            reg_end = date(2024, 12, 31)
-            reg_days = (reg_end - reg_start).days
-            registrierung = reg_start + timedelta(days=random.randint(0, reg_days))
-
-        bruttoleistung = random.uniform(500, 6000)
-        plz = random.choice(SAMPLE_PLZ)
-        city = random.choice(SAMPLE_CITIES)
-
-        rows.append({
-            "EinheitMastrNummer": f"SEE{random.randint(100000000000, 999999999999)}",
-            "EinheitBetriebsstatus": status,
-            "Inbetriebnahmedatum": inbetriebnahme.isoformat(),
-            "Registrierungsdatum": registrierung.isoformat(),
-            "Energietraeger": "Wind",
-            "Bruttoleistung": round(bruttoleistung, 1),
-            "Nettonennleistung": round(bruttoleistung * 0.97, 1),
-            "Postleitzahl": plz,
-            "Einheitname": f"Windpark {city}",
-            "AnlagenbetreiberName": random.choice(SAMPLE_OPERATORS),
-            "DatumLetzteAktualisierung": date(2024, random.randint(1, 12),
-                                               random.randint(1, 28)).isoformat(),
-        })
-
-    return pd.DataFrame(rows)
-
 
 def fetch_mastr_wind():
     """
     Download wind plant data using the open-mastr package.
     Extracts directly from the open-mastr SQLite database, which holds real BNetzA data.
-    Falls back to synthetic data only if open-mastr data is completely missing.
+    Attempts (a) local SQLite cache, then (b) live open-mastr download.
+    If both fail, raises a RuntimeError.
     """
     os.makedirs("data/raw", exist_ok=True)
     csv_path = "data/raw/mastr_wind_raw.csv"
@@ -325,24 +234,171 @@ def fetch_mastr_wind():
                 return csv_path
 
     except Exception as e:
-        print(f"open-mastr download failed: {e}. Using synthetic fallback.")
+        print(f"open-mastr live download failed: {e}")
 
-    # Fallback: synthetic dataset
-    print("Generating synthetic wind plant data for prototype fallback...")
-    df = _generate_synthetic_data(500)
+    # If both local cache and live download failed, abort execution
+    raise RuntimeError(
+        "No MaStR data source available - both cache and live download failed. "
+        "Pipeline cannot continue."
+    )
 
-    # Add comment header to indicate synthetic data
-    with open(csv_path, "w", encoding="utf-8") as f:
-        f.write("# SYNTHETIC DATA - FOR PROTOTYPE DEMONSTRATION ONLY\n")
-        f.write("# Replace with real open-mastr download before production use\n")
-    df.to_csv(csv_path, mode="a", index=False)
 
-    print(f"Generated synthetic data: {len(df)} rows")
-    print(f"\nFirst 3 rows:")
-    print(df.head(3).to_string())
-    print(f"\nTotal rows: {len(df)}")
+# --------------------------------------------------------------------------
+# MaStR Market Actors (Marktakteure) data fetch
+# --------------------------------------------------------------------------
 
-    return csv_path
+def fetch_market_actors():
+    """
+    Download and export Market Actors (Marktakteure) from open-mastr.
+    Checks the local open-mastr SQLite database for the Marktakteure table,
+    or triggers open-mastr download(data="market").
+    Exports the resulting table to data/raw/market_actors_raw.csv.
+    """
+    os.makedirs("data/raw", exist_ok=True)
+    csv_path = "data/raw/market_actors_raw.csv"
+
+    home_dir = os.path.expanduser("~")
+    sqlite_path = os.path.join(home_dir, ".open-MaStR", "data", "sqlite", "open-mastr.db")
+
+    # Step 1: Check if open-mastr SQLite DB already contains the market actors table
+    if os.path.exists(sqlite_path):
+        try:
+            import sqlite3
+            conn = sqlite3.connect(sqlite_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type IN ('table', 'view') AND name IN ('Marktakteure', 'market_actors')")
+            row = cursor.fetchone()
+            if row:
+                tbl = row[0]
+                print(f"Reading market actors from open-mastr database ({sqlite_path}, table: {tbl})...")
+                # Stream out to CSV in chunks for fast, memory-safe export
+                if os.path.exists(csv_path):
+                    os.remove(csv_path)
+                total_exported = 0
+                for i, chunk in enumerate(pd.read_sql_query(f"SELECT * FROM {tbl}", conn, chunksize=200000)):
+                    chunk.to_csv(csv_path, mode="a", header=(i == 0), index=False)
+                    total_exported += len(chunk)
+                    print(f"  Exported {total_exported:,} rows...")
+                conn.close()
+                print(f"Successfully exported {total_exported:,} market actors to {csv_path}")
+                return csv_path
+            conn.close()
+        except Exception as e:
+            print(f"Error reading market actors from SQLite DB: {e}")
+
+    # Step 2: Live open_mastr download
+    try:
+        from open_mastr import Mastr
+        db = Mastr()
+        print("Initiating open-mastr bulk download for market actors...")
+        db.download(data="market")
+
+        if os.path.exists(sqlite_path):
+            import sqlite3
+            conn = sqlite3.connect(sqlite_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type IN ('table', 'view') AND name IN ('Marktakteure', 'market_actors')")
+            row = cursor.fetchone()
+            if row:
+                tbl = row[0]
+                df = pd.read_sql_query(f"SELECT * FROM {tbl}", conn)
+                conn.close()
+                if len(df) > 0:
+                    df.to_csv(csv_path, index=False)
+                    print(f"Successfully exported {len(df)} market actors to {csv_path}")
+                    return csv_path
+            conn.close()
+    except Exception as e:
+        print(f"open-mastr market actors download failed: {e}")
+        raise RuntimeError(f"Could not fetch market actors: {e}")
+
+def fetch_storage_units():
+    """
+    Download and export storage units (EinheitenStromSpeicher) from open-mastr.
+    Checks the local open-mastr SQLite database for the EinheitenStromSpeicher table,
+    or triggers open-mastr download(data="storage").
+    Exports the resulting table to data/raw/storage_units_raw.csv.
+    Prints all column headers.
+    """
+    os.makedirs("data/raw", exist_ok=True)
+    csv_path = "data/raw/storage_units_raw.csv"
+
+    home_dir = os.path.expanduser("~")
+    sqlite_path = os.path.join(home_dir, ".open-MaStR", "data", "sqlite", "open-mastr.db")
+
+    # Step 1: Check if open-mastr SQLite DB already contains storage units
+    if os.path.exists(sqlite_path):
+        try:
+            import sqlite3
+            conn = sqlite3.connect(sqlite_path)
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type IN ('table', 'view') "
+                "AND name IN ('EinheitenStromSpeicher', 'storage_extended', 'storage_units')"
+            )
+            row = cursor.fetchone()
+            if row:
+                tbl = row[0]
+                print(f"Reading storage units from open-mastr database ({sqlite_path}, table: {tbl})...")
+                if os.path.exists(csv_path):
+                    os.remove(csv_path)
+                total_exported = 0
+                for i, chunk in enumerate(pd.read_sql_query(f"SELECT * FROM {tbl}", conn, chunksize=200000)):
+                    chunk.to_csv(csv_path, mode="a", header=(i == 0), index=False)
+                    total_exported += len(chunk)
+                    print(f"  Exported {total_exported:,} storage rows...")
+                conn.close()
+                print(f"Successfully exported {total_exported:,} storage units to {csv_path}")
+
+                header_df = pd.read_csv(csv_path, nrows=1)
+                print("\nRaw Storage Column Headers:")
+                for col in header_df.columns:
+                    print(f"  - {col}")
+                return csv_path
+            conn.close()
+        except Exception as e:
+            print(f"Error reading storage from SQLite DB: {e}")
+
+    # Step 2: Download via open_mastr
+    try:
+        from open_mastr import Mastr
+        db = Mastr()
+        print("Initiating open-mastr bulk download for storage...")
+        db.download(data="storage")
+
+        if os.path.exists(sqlite_path):
+            import sqlite3
+            conn = sqlite3.connect(sqlite_path)
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type IN ('table', 'view') "
+                "AND name IN ('EinheitenStromSpeicher', 'storage_extended', 'storage_units')"
+            )
+            row = cursor.fetchone()
+            if row:
+                tbl = row[0]
+                print(f"Exporting storage units from {tbl}...")
+                if os.path.exists(csv_path):
+                    os.remove(csv_path)
+                total_exported = 0
+                for i, chunk in enumerate(pd.read_sql_query(f"SELECT * FROM {tbl}", conn, chunksize=200000)):
+                    chunk.to_csv(csv_path, mode="a", header=(i == 0), index=False)
+                    total_exported += len(chunk)
+                    print(f"  Exported {total_exported:,} storage rows...")
+                conn.close()
+                print(f"Successfully exported {total_exported:,} storage units to {csv_path}")
+
+                header_df = pd.read_csv(csv_path, nrows=1)
+                print("\nRaw Storage Column Headers:")
+                for col in header_df.columns:
+                    print(f"  - {col}")
+                return csv_path
+            conn.close()
+    except Exception as e:
+        print(f"open-mastr storage download failed: {e}")
+        raise RuntimeError(f"Could not fetch storage units: {e}")
+
+    raise RuntimeError("No storage table found after open-mastr download.")
 
 
 if __name__ == "__main__":
@@ -351,3 +407,5 @@ if __name__ == "__main__":
 
     csv = fetch_mastr_wind()
     print(f"\nMaStR data saved to: {csv}")
+
+

@@ -20,7 +20,10 @@ load_dotenv()
 
 DEEPL_ENDPOINT = "https://api-free.deepl.com/v2/translate"
 
-# Strict domain glossary for German energy/wind legal terminology
+# UNVERIFIED — based on general domain knowledge, pending human legal-terminology review.
+# These mappings have NOT been sourced from or cross-checked against the EU IATE database
+# (iate@cdt.europa.eu) or any other official terminology authority. Do not treat as
+# authoritative until a qualified legal translator has reviewed and approved each entry.
 LEGAL_ENERGY_GLOSSARY = {
     "Einheiten": ["unit", "units"],
     "Inbetriebnahme": ["commissioning", "put into operation", "putting into operation", "commencement of operation", "operation"],
@@ -95,9 +98,12 @@ def validate_legal_glossary(text_de: str, text_en: str) -> list[dict]:
     return violations
 
 
-# Official EU IATE / statutory alignments for common machine-translation synonyms
+# UNVERIFIED alignment rules — based on general domain knowledge, pending human legal-terminology review.
+# These substitutions have NOT been verified against official IATE entries or any authoritative
+# legal glossary. IATE identifiers cited in previous comments were speculative and have been removed.
+# Do not treat these alignments as authoritative until confirmed by a qualified legal translator.
 TERMINOLOGY_ALIGNMENTS = [
-    # KWK-Anlagen: DeepL translates as "CHP facilities" -> align to canonical IATE term "CHP plants" (IATE: 1104689)
+    # KWK-Anlagen: DeepL sometimes outputs "CHP facilities" — unverified preferred form: "CHP plants"
     (r"\bCHP facilities\b", "CHP plants"),
     (r"\bcogeneration facilities\b", "cogeneration plants"),
     (r"\bcombined heat and power facilities\b", "combined heat and power plants"),
@@ -106,9 +112,12 @@ TERMINOLOGY_ALIGNMENTS = [
 
 def align_glossary_terminology(text_de: str, text_en: str) -> tuple[str, list[dict]]:
     """
-    Enforces approved statutory terminology on machine translation output.
-    Replaces non-standard MT variants with canonical IATE terms,
+    Applies unverified domain-knowledge alignment rules to machine translation output.
+    Replaces common MT variants with preferred (but unverified) terminology forms,
     then re-validates against LEGAL_ENERGY_GLOSSARY.
+    NOTE: Neither TERMINOLOGY_ALIGNMENTS nor LEGAL_ENERGY_GLOSSARY has been verified
+    against IATE or any official legal-terminology authority. Results are pending
+    human legal-terminology review before being treated as authoritative.
     """
     import re
     aligned_en = text_en

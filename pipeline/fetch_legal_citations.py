@@ -153,10 +153,18 @@ def fetch_and_seed_legal_citations(conn=None) -> list[dict]:
                 print(f"  [WARN] No div.jurAbsatz found for {cid}")
                 continue
 
-            # Insert into DuckDB table legal_citations
+            # Insert into DuckDB table legal_citations (specifying columns explicitly)
             today_str = date.today().isoformat()
             conn.execute("""
-                INSERT OR REPLACE INTO legal_citations VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO legal_citations (citation_id, law_name, paragraph, topic, official_text_de, source_url, verified_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (citation_id) DO UPDATE SET
+                    law_name = EXCLUDED.law_name,
+                    paragraph = EXCLUDED.paragraph,
+                    topic = EXCLUDED.topic,
+                    official_text_de = EXCLUDED.official_text_de,
+                    source_url = EXCLUDED.source_url,
+                    verified_at = EXCLUDED.verified_at
             """, [cid, law, para, topic, matched_text, url, today_str])
 
             records_loaded.append({

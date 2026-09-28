@@ -11,10 +11,10 @@ import time
 import duckdb
 import yaml
 
-from pipeline.load import init_db, load_wind_plants
-from pipeline.fetch_tier1 import fetch_plz_lookup, load_plz_lookup, fetch_mastr_wind
-from pipeline.parse import parse_wind_plants
-from pipeline.aggregate import build_snapshots
+from pipeline.load import init_db, load_wind_plants, load_storage_units, link_storage_to_wind, log_pipeline_run
+from pipeline.fetch_tier1 import fetch_plz_lookup, load_plz_lookup, fetch_mastr_wind, fetch_storage_units
+from pipeline.parse import parse_wind_plants, parse_storage_units
+from pipeline.aggregate import build_snapshots, aggregate_bess
 
 
 def run_tier1():
@@ -32,6 +32,10 @@ def run_tier1():
         ("mastr_parse", lambda: parse_wind_plants()),
         ("mastr_load", lambda: load_wind_plants(parse_wind_plants(), conn)),
         ("aggregate", lambda: build_snapshots(conn)),
+        ("storage_fetch", lambda: fetch_storage_units()),
+        ("storage_load", lambda: load_storage_units(parse_storage_units(), conn)),
+        ("bess_colocation", lambda: link_storage_to_wind(conn)),
+        ("bess_aggregate", lambda: aggregate_bess(conn)),
     ]
 
     for step_name, step_fn in steps:
@@ -42,6 +46,17 @@ def run_tier1():
         except Exception as e:
             results[step_name] = f"failed: {e}"
             print(f"[FAIL] {step_name}: {e}")
+            
+            # Log clear failed status to pipeline_runs
+            source_id = "mastr_wind" if "mastr" in step_name else ("plz_lookup" if "plz" in step_name else "tier1")
+            try:
+                log_pipeline_run(conn, step_name, 0, source_id, "failed", str(e))
+            except Exception as log_err:
+                print(f"Could not log failure to pipeline_runs: {log_err}")
+            
+            # Stop cleanly rather than continuing with missing or invalid data
+            print(f"\n[FATAL] Aborting Tier 1 pipeline due to failure in {step_name}.")
+            break
 
     elapsed = time.time() - start
     print(f"\nTier 1 pipeline complete in {elapsed:.1f}s")
@@ -88,6 +103,30 @@ def run_tier2():
     conn.close()
 
 
+def run_bess():
+    """Run BESS storage fetch, parse, load, linking, and aggregation."""
+    start = time.time()
+    conn = duckdb.connect("db/gtp.duckdb")
+    steps = [
+        ("init_db", lambda: init_db()),
+        ("storage_fetch", lambda: fetch_storage_units()),
+        ("storage_load", lambda: load_storage_units(parse_storage_units(), conn)),
+        ("bess_colocation", lambda: link_storage_to_wind(conn)),
+        ("bess_aggregate", lambda: aggregate_bess(conn)),
+    ]
+    for step_name, step_fn in steps:
+        try:
+            step_fn()
+            print(f"[OK] {step_name}")
+        except Exception as e:
+            print(f"[FAIL] {step_name}: {e}")
+            log_pipeline_run(conn, step_name, 0, "mastr_storage", "failed", str(e))
+            break
+    elapsed = time.time() - start
+    print(f"\nBESS pipeline complete in {elapsed:.1f}s")
+    conn.close()
+
+
 def run_all():
     """Run both Tier 1 and Tier 2 pipelines."""
     print("=== Tier 1: Official Data ===")
@@ -102,5 +141,7 @@ if __name__ == "__main__":
         run_tier1()
     elif len(sys.argv) > 1 and sys.argv[1] == "tier2":
         run_tier2()
+    elif len(sys.argv) > 1 and sys.argv[1] == "bess":
+        run_bess()
     else:
         run_all()

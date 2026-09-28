@@ -51,7 +51,9 @@ def init_db():
         CREATE TABLE IF NOT EXISTS wind_plants (
             mastr_id                TEXT PRIMARY KEY,
             display_name            TEXT,
+            operator_mastr_id       TEXT,
             operator_name           TEXT,
+            operator_name_resolved  BOOLEAN DEFAULT FALSE,
             energy_source           TEXT NOT NULL,
             betriebs_status         TEXT,
             inbetriebnahmedatum     DATE,
@@ -63,6 +65,52 @@ def init_db():
             nettonennleistung_mw    DOUBLE,
             source_id               TEXT REFERENCES sources(source_id),
             last_updated            DATE
+        )
+    """)
+
+    # Ensure operator_mastr_id exists on existing tables
+    try:
+        conn.execute("ALTER TABLE wind_plants ADD COLUMN IF NOT EXISTS operator_mastr_id TEXT")
+    except Exception:
+        pass
+
+    # 3b. Battery Storage (BESS) units registry (separate asset type)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS storage_units (
+            mastr_id                TEXT PRIMARY KEY,
+            display_name            TEXT,
+            operator_mastr_id       TEXT,
+            operator_name           TEXT,
+            operator_name_resolved  BOOLEAN DEFAULT FALSE,
+            betriebs_status         TEXT,
+            inbetriebnahmedatum     DATE,
+            registrierungsdatum     DATE,
+            postleitzahl            TEXT,
+            bundesland              TEXT,
+            bundesland_code         TEXT,
+            bruttoleistung_mw       DOUBLE,
+            nettonennleistung_mw    DOUBLE,
+            batterietechnologie     TEXT,
+            co_located_wind         BOOLEAN DEFAULT FALSE,
+            matched_wind_mastr_id   TEXT,
+            source_id               TEXT REFERENCES sources(source_id),
+            last_updated            DATE
+        )
+    """)
+
+    # 3c. BESS co-location summary
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bess_summary (
+            bundesland              TEXT PRIMARY KEY,
+            bundesland_code         TEXT NOT NULL,
+            total_wind_mw           DOUBLE,
+            wind_plant_count        INTEGER,
+            colocated_bess_mw       DOUBLE,
+            colocated_bess_count    INTEGER,
+            colocation_mw_share_pct DOUBLE,
+            avg_bess_mw             DOUBLE,
+            top_operators           TEXT,
+            updated_at              DATE
         )
     """)
 
@@ -129,7 +177,8 @@ def init_db():
             human_verified          BOOLEAN DEFAULT FALSE,
             verified_at             TIMESTAMP,
             confidence_score        DOUBLE,
-            is_preliminary          BOOLEAN DEFAULT FALSE
+            is_preliminary          BOOLEAN DEFAULT FALSE,
+            UNIQUE (source_id, entity, metric, period)
         )
     """)
 
@@ -202,6 +251,13 @@ def init_db():
          'Quarterly press releases from Nordex SE, German language')
     """)
 
+    conn.execute("""
+        INSERT OR REPLACE INTO sources VALUES
+        ('mastr_storage', 'Marktstammdatenregister - Battery Storage', 'official', 1, 'official_registry',
+         'https://www.marktstammdatenregister.de/MaStR', 'monthly', NULL,
+         'Official German energy storage registry, Bundesnetzagentur')
+    """)
+
     # Seed verified statutory provisions live from gesetze-im-internet.de
     try:
         from pipeline.fetch_legal_citations import fetch_and_seed_legal_citations
@@ -230,7 +286,7 @@ def load_wind_plants(df, conn):
     """
     # Required columns in order
     required_cols = [
-        "mastr_id", "display_name", "operator_name", "energy_source",
+        "mastr_id", "display_name", "operator_mastr_id", "operator_name", "operator_name_resolved", "energy_source",
         "betriebs_status", "inbetriebnahmedatum", "registrierungsdatum",
         "postleitzahl", "bundesland", "bundesland_code", "bruttoleistung_mw",
         "nettonennleistung_mw", "source_id", "last_updated"
@@ -245,10 +301,14 @@ def load_wind_plants(df, conn):
     df = df[required_cols].copy()
 
     try:
+        # Ensure column exists if table was created in an earlier migration
+        conn.execute("ALTER TABLE wind_plants ADD COLUMN IF NOT EXISTS operator_mastr_id TEXT")
+        conn.execute("ALTER TABLE wind_plants ADD COLUMN IF NOT EXISTS operator_name_resolved BOOLEAN DEFAULT FALSE")
         # Clear existing mastr_wind plants to prevent stale/residual records
         conn.execute("DELETE FROM wind_plants WHERE source_id = 'mastr_wind'")
-        # Upsert using DuckDB's pandas integration
-        conn.execute("INSERT OR REPLACE INTO wind_plants SELECT * FROM df")
+        # Upsert using explicit column matching
+        cols_str = ", ".join(required_cols)
+        conn.execute(f"INSERT OR REPLACE INTO wind_plants ({cols_str}) SELECT {cols_str} FROM df")
 
         # Update sources table with last_fetched date
         conn.execute("""
@@ -266,6 +326,122 @@ def load_wind_plants(df, conn):
         print(f"Error loading wind plants: {e}")
         log_pipeline_run(conn, "load_wind_plants", 0, "mastr_wind", "failed", str(e))
         raise
+
+
+def load_storage_units(df, conn):
+    """
+    Load parsed storage units data into the storage_units table.
+    """
+    required_cols = [
+        "mastr_id", "display_name", "operator_mastr_id", "operator_name", "operator_name_resolved",
+        "betriebs_status", "inbetriebnahmedatum", "registrierungsdatum",
+        "postleitzahl", "bundesland", "bundesland_code", "bruttoleistung_mw",
+        "nettonennleistung_mw", "batterietechnologie", "source_id", "last_updated"
+    ]
+
+    for col in required_cols:
+        if col not in df.columns:
+            df[col] = None
+
+    df = df[required_cols].copy()
+
+    try:
+        conn.execute("DELETE FROM storage_units WHERE source_id = 'mastr_storage'")
+        cols_str = ", ".join(required_cols)
+        conn.execute(f"INSERT OR REPLACE INTO storage_units ({cols_str}) SELECT {cols_str} FROM df")
+
+        conn.execute("""
+            UPDATE sources SET last_fetched = CURRENT_DATE 
+            WHERE source_id = 'mastr_storage'
+        """)
+
+        total = conn.execute("SELECT COUNT(*) FROM storage_units").fetchone()[0]
+        print(f"Loaded {len(df):,} rows into storage_units. Total rows now: {total:,}")
+
+        log_pipeline_run(conn, "load_storage_units", len(df), "mastr_storage", "success",
+                         f"Loaded {len(df):,} storage rows, total now {total:,}")
+    except Exception as e:
+        print(f"Error loading storage units: {e}")
+        log_pipeline_run(conn, "load_storage_units", 0, "mastr_storage", "failed", str(e))
+        raise
+
+
+def link_storage_to_wind(conn):
+    """
+    Match storage units to wind plants to identify co-located BESS assets.
+    Primary key: direct link field if present.
+    Best available proxy: matching on (operator_mastr_id, postal_code) and (operator_name, postal_code).
+    Updates storage_units.co_located_wind and matched_wind_mastr_id.
+    Reports:
+      - Total storage units found
+      - Total successfully matched to a wind plant
+      - Total unmatched
+      - Total co-located capacity in MW
+    """
+    print("\nLinking storage units to wind plants (BESS co-location analysis)...")
+    conn.execute("UPDATE storage_units SET co_located_wind = FALSE, matched_wind_mastr_id = NULL")
+
+    # Perform matching
+    conn.execute("""
+        UPDATE storage_units
+        SET co_located_wind = TRUE,
+            matched_wind_mastr_id = sub.wind_mastr_id
+        FROM (
+            SELECT 
+                s.mastr_id as storage_mastr_id,
+                MIN(w.mastr_id) as wind_mastr_id
+            FROM storage_units s
+            JOIN wind_plants w ON (
+                (s.operator_mastr_id IS NOT NULL AND w.operator_mastr_id IS NOT NULL 
+                 AND s.operator_mastr_id = w.operator_mastr_id 
+                 AND s.postleitzahl = w.postleitzahl)
+                OR
+                (s.operator_name IS NOT NULL AND w.operator_name IS NOT NULL
+                 AND s.operator_name = w.operator_name
+                 AND s.operator_name_resolved = TRUE AND w.operator_name_resolved = TRUE
+                 AND s.postleitzahl = w.postleitzahl)
+            )
+            GROUP BY s.mastr_id
+        ) sub
+        WHERE storage_units.mastr_id = sub.storage_mastr_id
+    """)
+
+    stats = conn.execute("""
+        SELECT 
+            COUNT(*) as total_storage,
+            COUNT(CASE WHEN co_located_wind THEN 1 END) as matched_storage,
+            COUNT(CASE WHEN NOT co_located_wind THEN 1 END) as unmatched_storage,
+            COALESCE(SUM(CASE WHEN co_located_wind AND betriebs_status = 'operating' THEN nettonennleistung_mw END), 0) as colocated_operating_mw,
+            COALESCE(SUM(CASE WHEN co_located_wind THEN nettonennleistung_mw END), 0) as colocated_total_mw
+        FROM storage_units
+    """).fetchone()
+
+    total_storage = stats[0]
+    matched_storage = stats[1]
+    unmatched_storage = stats[2]
+    colocated_operating_mw = stats[3]
+    colocated_total_mw = stats[4]
+
+    print("=" * 60)
+    print("BESS CO-LOCATION MATCH REPORT")
+    print("=" * 60)
+    print(f"Total storage units in registry:    {total_storage:,}")
+    print(f"Successfully matched to wind:       {matched_storage:,}")
+    print(f"Unmatched storage units:            {unmatched_storage:,}")
+    print(f"Co-located operating BESS capacity: {colocated_operating_mw:,.2f} MW")
+    print(f"Co-located total (inc planned):     {colocated_total_mw:,.2f} MW")
+    print("=" * 60)
+
+    log_pipeline_run(conn, "link_storage_to_wind", matched_storage, "mastr_storage", "success",
+                     f"Matched {matched_storage:,} BESS units ({colocated_operating_mw:,.2f} operating MW)")
+
+    return {
+        "total_storage": total_storage,
+        "matched_storage": matched_storage,
+        "unmatched_storage": unmatched_storage,
+        "colocated_operating_mw": colocated_operating_mw,
+        "colocated_total_mw": colocated_total_mw
+    }
 
 
 if __name__ == "__main__":

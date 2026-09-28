@@ -271,6 +271,19 @@ def validate_claim(result: dict, schema: dict, full_text: str) -> bool:
     return True
 
 
+def normalize_period(period_str: str) -> str:
+    """Normalize reporting period strings to standard uppercase hyphenated format (e.g. 'Q1-2024')."""
+    if not period_str:
+        return "unknown"
+    p = str(period_str).strip()
+    m = re.match(r"^(Q[1-4]|H[1-2]|FY)[\s\-_]*(\d{4})$", p, re.IGNORECASE)
+    if m:
+        return f"{m.group(1).upper()}-{m.group(2)}"
+    p = re.sub(r"[\s_]+", "-", p)
+    p = re.sub(r"-+", "-", p)
+    return p
+
+
 # --------------------------------------------------------------------------
 # Legal & Regulatory Citation Verification Layer
 # --------------------------------------------------------------------------
@@ -445,13 +458,17 @@ def extract_claims_from_document(doc: dict, conn) -> list:
 
             if result is None:
                 print(f"    Could not parse LLM response for {metric}")
-                continue
-
             # Validate
             if validate_claim(result, schema, full_text):
-                period = result.get("period", "unknown")
+                period = normalize_period(result.get("period", "unknown"))
                 claim_id = f"{source_id}_{metric}_{period}"
                 chunk_id = chunks[0].get("chunk_id", None) if chunks else None
+
+                # Dedup check on (source_id, entity, metric, period)
+                conn.execute("""
+                    DELETE FROM extracted_claims 
+                    WHERE source_id = ? AND entity = ? AND metric = ? AND period = ?
+                """, [source_id, company, metric, period])
 
                 source_de = result.get("source_sentence_de", "")
                 source_en = result.get("source_sentence_en", "")
@@ -495,9 +512,9 @@ def extract_claims_from_document(doc: dict, conn) -> list:
                     "is_preliminary": is_preliminary,
                 })
 
-                print(f"    ✓ Found: {result['value']} {schema['unit']} ({period})")
+                print(f"    [OK] Found: {result['value']} {schema['unit']} ({period})")
             else:
-                print(f"    ✗ Validation failed for {metric}")
+                print(f"    [REJECT] Validation failed for {metric}")
 
         except Exception as e:
             print(f"    Error extracting {metric}: {e}")

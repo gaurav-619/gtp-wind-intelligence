@@ -168,7 +168,6 @@ def download_document(doc: dict) -> dict:
             f"data/raw/{source_id}_press_Q1_2024.txt",
             f"data/raw/{source_id}_Q1_2024.txt",
             "data/raw/nordex_press_Q1_2024.txt",
-            "data/raw/nordex_press_Q1_2024_synthetic.txt",
         ]
         fallback_found = None
         for cp in candidate_paths:
