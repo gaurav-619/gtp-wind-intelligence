@@ -2,6 +2,9 @@
 
 > **Institutional Market Intelligence Platform for Germany's Onshore Wind Infrastructure, Permitting Pipeline, Corporate Asset Ownership, and Co-Located Battery Energy Storage (BESS).**
 
+🌐 **Live Web Application:** [https://gtp-wind-intelligence-dm3mfa7b5ebx5xrh3rquvj.streamlit.app/](https://gtp-wind-intelligence-dm3mfa7b5ebx5xrh3rquvj.streamlit.app/)
+
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://gtp-wind-intelligence-dm3mfa7b5ebx5xrh3rquvj.streamlit.app/)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
 [![DuckDB OLAP](https://img.shields.io/badge/DuckDB-In--Process%20Columnar-FFF000.svg)](https://duckdb.org/)
 [![Streamlit UI](https://img.shields.io/badge/Streamlit-1.36%2B-FF4B4B.svg)](https://streamlit.io/)
@@ -145,26 +148,16 @@ python scripts/verify_check.py
 
 The repository is configured for deployment with a lean 5.01 MB DuckDB database (no multi-gigabyte raw CSV uploads required).
 
-### Option A: Streamlit Community Cloud (Recommended — Free & 1-Click)
+### Option A: Streamlit Community Cloud (Live Production)
 
-1. **Push your code to GitHub:**
-   ```bash
-   git add .
-   git commit -m "feat: complete production release of GTP Wind Intelligence"
-   git remote add origin https://github.com/<your-username>/gtp-wind-intelligence.git
-   git branch -M main
-   git push -u origin main
-   ```
+The application is deployed and running live:
+👉 **[https://gtp-wind-intelligence-dm3mfa7b5ebx5xrh3rquvj.streamlit.app/](https://gtp-wind-intelligence-dm3mfa7b5ebx5xrh3rquvj.streamlit.app/)**
 
-2. **Deploy on Streamlit Community Cloud:**
-   - Go to [share.streamlit.io](https://share.streamlit.io/) and log in with your GitHub account.
-   - Click **"New app"**.
-   - Select your repository: `<your-username>/gtp-wind-intelligence`.
-   - Set **Branch**: `main`.
-   - Set **Main file path**: `app/main.py`.
-   - Click **"Deploy!"**.
-
-3. **Live Status:** The app will build and go live in ~45 seconds at `https://<your-app-name>.streamlit.app`.
+To deploy your own fork:
+1. Fork or clone this repository to your GitHub account (`gaurav-619/gtp-wind-intelligence`).
+2. Log into [share.streamlit.io](https://share.streamlit.io/).
+3. Select repo: `gaurav-619/gtp-wind-intelligence`, Branch: `main`, Main file path: `app/main.py`.
+4. Click **Deploy!**. Because `db/gtp.duckdb` is optimized to 5.01 MB, the application boots in ~45 seconds.
 
 ---
 
