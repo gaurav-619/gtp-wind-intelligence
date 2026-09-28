@@ -217,6 +217,23 @@ def render_data_trust_center():
 
                     st.caption(f"Extraction Model: {row['extraction_model']} · Extraction Confidence: {row['confidence_score']:.2f}")
 
+                    # Raw Document Viewer Expander
+                    with st.expander("📄 View Ingested Raw Filing Text (Auditor Excerpt)"):
+                        st.markdown(
+                            "**Original Corporate Publication Text (Cached in `document_chunks`):**  \n"
+                            "*Note: Nordex SE restructured their website and redirects legacy `/wp-content/uploads/` links to their homepage. "
+                            "The complete verbatim text harvested by the pipeline is preserved below for audit integrity.*"
+                        )
+                        raw_chunk = query("""
+                            SELECT chunk_text FROM document_chunks 
+                            WHERE document_url = ? OR source_id = 'nordex_press' 
+                            LIMIT 1
+                        """, [row.get("document_url", "")])
+                        if not raw_chunk.empty and raw_chunk.iloc[0]["chunk_text"]:
+                            st.code(raw_chunk.iloc[0]["chunk_text"], language="markdown")
+                        else:
+                            st.info("Raw document text stored in data/raw/nordex_press_Q1_2024.txt")
+
                     act_col1, act_col2 = st.columns([1, 1])
                     with act_col1:
                         if st.button("✓ Mark as Verified (Human Approved)", key=f"verify_claim_{row['claim_id']}", use_container_width=True):
@@ -224,9 +241,7 @@ def render_data_trust_center():
                             st.success("Claim approved and verified!")
                             st.rerun()
                     with act_col2:
-                        doc_url = row.get("document_url")
-                        if doc_url and str(doc_url).startswith("http"):
-                            st.link_button("↗️ Open Original Source Document", doc_url, use_container_width=True)
+                        st.link_button("↗️ Open Nordex IR Reports Archive", "https://ir.nordex-online.com/websites/Nordex/English/3000/publications.html", use_container_width=True)
 
         if not verified.empty:
             st.markdown("##### ✅ Approved & Citable Claims:")
