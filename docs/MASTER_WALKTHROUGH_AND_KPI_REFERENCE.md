@@ -1,7 +1,7 @@
 # Wind Intelligence Platform — Master System Walkthrough & KPI Reference Manual
 
 > **Document Version:** 1.0 (Production Verified)  
-> **Target Audience:** Technical Auditors, Software Engineers, Data Scientists, and Investment Partners at Greentech Partners.  
+> **Target Audience:** Technical Auditors, Software Engineers, Data Scientists, and Renewable Energy Investment Partners.  
 > **Mission:** A comprehensive, zero-ambiguity reference manual detailing **where every data point originates**, **how every pipeline function works**, **what exact mathematical formulas and SQL queries produce each KPI**, and **how the German regulatory framework maps directly to the live dashboard screens**.
 
 ---

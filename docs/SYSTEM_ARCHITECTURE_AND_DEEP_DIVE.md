@@ -1,6 +1,6 @@
 # Wind Intelligence Platform — Comprehensive System Architecture & Technical Master Blueprint
 
-> **Target Audience:** Anyone reading this codebase for the first time—from a junior software engineer or data scientist to senior investment partners at **Greentech Partners**.  
+> **Target Audience:** Anyone reading this codebase for the first time—from a junior software engineer or data scientist to senior renewable energy investment partners.  
 > **Mission:** An end-to-end, zero-ambiguity reference explaining **what** was built, **why** every technology was selected, **how** every Python function and SQL table works, **what the exact business results are**, and **how the German regulatory and legislative scenario directly maps to the database values**.
 
 ---
@@ -101,7 +101,7 @@ In Wind Intelligence Platform, our Tier 1 pipeline analyzes **38,488 real onshor
 - **Current Operating Capacity:** **71,014.5 MW (~71.0 GW)** across **30,358 operating turbines**.
 - **Expansion Gap to 2030 Target:** **44.0 GW** still needs to be built and energized over the next ~4.5 years.
 - **The Pipeline Surplus:** Our system counts **49,836.2 MW (~49.8 GW)** across **8,130 planned turbines** registered in the government database.
-- **Strategic Insight for Greentech Partners:** On paper, the development pipeline (49.8 GW) is *more than large enough* to bridge the 44.0 GW gap to 115 GW. The critical bottleneck is therefore **not** developer interest or project origination—it is the **permitting and grid connection timeline**.
+- **Strategic Industry Insight:** On paper, the development pipeline (49.8 GW) is *more than large enough* to bridge the 44.0 GW gap to 115 GW. The critical bottleneck is therefore **not** developer interest or project origination—it is the **permitting and grid connection timeline**.
 
 ### 1.3 The North-South Divide (*Nord-Süd-Gefälle*) & Planning Law (Wind-an-Land-Gesetz & 10H Rule)
 When you inspect our Market Landscape capacity rankings, four states account for **62.0% (44,063.3 MW)** of all operating wind capacity in Germany:
