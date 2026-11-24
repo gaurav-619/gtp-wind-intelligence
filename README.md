@@ -15,14 +15,18 @@
 
 ## 1. Executive Summary & Core Value Proposition
 
-Evaluating renewable energy investments, M&A portfolios, and repowering pipelines in Germany typically requires weeks of tedious manual data engineering. Analysts must download multi-gigabyte regulatory dumps from the Federal Network Agency (*Bundesnetzagentur* MaStR), resolve tens of thousands of decentralized project special purpose vehicles (*GmbH & Co. KG*) to true parent utilities, audit statutory subsidy expiration dates under the Renewable Energy Sources Act (*EEG*), and corroborate unstructured corporate press releases.
+Evaluating renewable energy investments, M&A portfolios, and repowering pipelines in Germany typically requires weeks of fragmented, manual research. Analysts and asset managers are forced to:
+- Download multi-gigabyte raw regulatory dumps from the Federal Network Agency (*Bundesnetzagentur* MaStR).
+- Manually decipher tens of thousands of decentralized project special purpose vehicles (*GmbH & Co. KG*) in spreadsheets to identify the true parent utilities.
+- Calculate statutory subsidy expiration dates under the Renewable Energy Sources Act (*EEG*) turbine by turbine.
+- Cross-reference unstructured corporate disclosures, interim reports, and press releases without audit trails.
 
-**The Wind Intelligence Platform replaces this fragmented manual research with a live, auditable intelligence suite:**
-- **Instant Due Diligence:** Evaluates 30,358 operating turbines (71.0 GW), 8,130 forward pipeline assets (33.1 GW), and all wind-co-located battery storage systems in milliseconds.
-- **Corporate Hierarchy Transparency:** Groups decentralized project SPVs into consolidated parent utility portfolios using deterministic heuristic mapping (e.g., RWE, EnBW, Alterric, PROKON, wpd).
-- **Statutory Repowering Screener:** Pinpoints Germany's **14.1 GW post-EEG subsidy cliff** (§ 25 EEG), identifying aging assets operating purely on merchant power prices.
-- **Hybrid Storage Optimization:** Uncovers early-stage wind + BESS co-location assets to mitigate negative electricity price curtailment (*Abregelung*).
-- **Two-Tier Audit Governance:** Enforces strict provenance tracking between official statutory facts (Tier 1) and unverified corporate claims (Tier 2).
+**The Wind Intelligence Platform replaces this manual, error-prone workflow with an automated, live intelligence suite:**
+- **Automated Registry Ingestion:** Ingests and processes 38,488 wind assets (30,358 operating at 71.0 GW; 8,130 pipeline units at 33.1 GW) and 2.8M storage records into an optimized, in-process 5.26 MB DuckDB warehouse.
+- **Deterministic Operator Resolution:** Digitalizes corporate hierarchy mapping by resolving 93.0% of the operating commercial fleet from decentralized project SPVs to consolidated parent utilities (e.g., RWE, EnBW, Alterric, wpd, PROKON).
+- **Statutory Subsidy Cliff Screener:** Automatically models statutory remuneration under § 25 EEG, pinpointing Germany's **14.1 GW post-EEG subsidy cliff** (11,053 operating turbines) exposed to unhedged merchant power prices.
+- **Hybrid Storage Optimization:** Programmatically screens 637 wind-co-located battery storage (BESS) units to identify co-located assets mitigating negative price curtailment (*Abregelung*).
+- **Dual-Tier Audit Governance:** Enforces rigorous provenance tracking separating official statutory registry ground truth (Tier 1) from preliminary corporate claims (Tier 2).
 
 ---
 
@@ -94,7 +98,7 @@ For detailed technical specifications, mathematical formulas, and audit logs, re
 
 | Layer | Technology | Function |
 | :--- | :--- | :--- |
-| **Database** | **DuckDB** (`v0.10+`) | Optimized 5.01 MB in-process columnar database providing sub-second aggregations over 38,000+ wind and co-located storage records. |
+| **Database** | **DuckDB** (`v0.10+`) | Optimized 5.26 MB in-process columnar database providing sub-second aggregations over 38,000+ wind and co-located storage records. |
 | **Backend** | **Python** (`3.11+`) | Vectorized processing with Pandas, NumPy, and regulatory parsing utilities. |
 | **Presentation** | **Streamlit** (`v1.36+`) | Zero-sidebar institutional interface using top navigation (`st.navigation(..., position="top")`). |
 | **Visualizations** | **Plotly** (`v5.18+`) | Interactive choropleths, grouped horizontal bar charts, and synchronized scatter plots. |
@@ -146,7 +150,7 @@ python scripts/verify_check.py
 
 ## 7. How to Deploy Live to the Web
 
-The repository is configured for deployment with a lean 5.01 MB DuckDB database (no multi-gigabyte raw CSV uploads required).
+The repository is configured for deployment with a lean 5.26 MB DuckDB database (no multi-gigabyte raw CSV uploads required).
 
 ### Option A: Streamlit Community Cloud (Live Production)
 
@@ -157,7 +161,7 @@ To deploy your own fork:
 1. Fork or clone this repository to your GitHub account (`gaurav-619/wind-intelligence-platform`).
 2. Log into [share.streamlit.io](https://share.streamlit.io/).
 3. Select repo: `gaurav-619/wind-intelligence-platform`, Branch: `main`, Main file path: `app/main.py`.
-4. Click **Deploy!**. Because `db/wind_intelligence.duckdb` is optimized to 5.01 MB, the application boots in ~45 seconds.
+4. Click **Deploy!**. Because `db/wind_intelligence.duckdb` is optimized to 5.26 MB, the application boots in ~45 seconds.
 
 ---
 
