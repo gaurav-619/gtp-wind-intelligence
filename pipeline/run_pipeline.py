@@ -22,7 +22,7 @@ def run_tier1():
     start = time.time()
     results = {}
 
-    conn = duckdb.connect("db/gtp.duckdb")
+    conn = duckdb.connect("db/wind_intelligence.duckdb")
 
     steps = [
         ("init_db", lambda: init_db()),
@@ -70,7 +70,7 @@ def run_tier2():
     from pipeline.rag import process_document_for_rag
     from pipeline.extract_claims import extract_claims_from_document
 
-    conn = duckdb.connect("db/gtp.duckdb")
+    conn = duckdb.connect("db/wind_intelligence.duckdb")
 
     with open("config/tier2_sources.yaml") as f:
         config = yaml.safe_load(f)
@@ -106,7 +106,7 @@ def run_tier2():
 def run_bess():
     """Run BESS storage fetch, parse, load, linking, and aggregation."""
     start = time.time()
-    conn = duckdb.connect("db/gtp.duckdb")
+    conn = duckdb.connect("db/wind_intelligence.duckdb")
     steps = [
         ("init_db", lambda: init_db()),
         ("storage_fetch", lambda: fetch_storage_units()),

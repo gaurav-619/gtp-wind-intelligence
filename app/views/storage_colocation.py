@@ -341,7 +341,7 @@ def render_storage_colocation():
         st.download_button(
             label="⬇️ Export Co-Located Assets (CSV)",
             data=csv_bess,
-            file_name=f"gtp_bess_colocated_assets_{date.today()}.csv",
+            file_name=f"wind_bess_colocated_assets_{date.today()}.csv",
             mime="text/csv",
             key="bess_download_csv",
             help="Download co-located BESS asset database as CSV."

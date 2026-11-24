@@ -1,6 +1,6 @@
 """
 app/main.py
-GTP Wind Intelligence - Application Entrypoint.
+Wind Intelligence Platform - Application Entrypoint.
 
 Migrated to Streamlit atomic navigation via st.navigation + st.Page.
 Features persistent top-bar navigation (position="top") with zero sidebar conflicts.
@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 # Centralized page config - called strictly once here
 st.set_page_config(
-    page_title="GTP Wind Intelligence",
+    page_title="Wind Intelligence Platform",
     page_icon="💨",
     layout="wide",
     initial_sidebar_state="collapsed",

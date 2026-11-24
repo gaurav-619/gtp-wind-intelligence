@@ -374,7 +374,7 @@ def render_operator_intelligence():
     st.download_button(
         label="⬇️ Export Parent Company Rollup Leaderboard (CSV)",
         data=csv_top20,
-        file_name=f"gtp_wind_parent_company_rollup_{date.today()}.csv",
+        file_name=f"wind_parent_company_rollup_{date.today()}.csv",
         mime="text/csv",
         key="export_parent_company_csv",
         help="Download Top 20 parent company groups and market shares as CSV."

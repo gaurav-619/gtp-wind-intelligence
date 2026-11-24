@@ -1,8 +1,8 @@
-# GTP Wind Intelligence — Comprehensive Verification & Audit Report
+# Wind Intelligence Platform — Comprehensive Verification & Audit Report
 
 > **Generated:** 2026-09-25  
-> **Target:** Verification of Prompts 1–6 for `gtp-wind-intelligence`  
-> **Database:** `db/gtp.duckdb`  
+> **Target:** Verification of Prompts 1–6 for `wind-intelligence-platform`  
+> **Database:** `db/wind_intelligence.duckdb`  
 > **Raw Source:** `data/raw/mastr_wind_raw.csv` (43,625 rows)
 
 ---
@@ -33,7 +33,7 @@
 
 ### 2. `load_plz_lookup()`
 * **Execution Path:** Real Path.
-* **Output:** Loaded 3,252 rows into table `plz_bundesland` in `db/gtp.duckdb`.
+* **Output:** Loaded 3,252 rows into table `plz_bundesland` in `db/wind_intelligence.duckdb`.
 * **Audit Trail:** Logged in `pipeline_runs` with `step = 'plz_lookup'`, `status = 'success'`, `records_processed = 3252`.
 
 ### 3. `fetch_mastr_wind()`

@@ -2,7 +2,7 @@
 pipeline/fetch_legal_citations.py
 Live scraper and validator for official German statutory provisions from gesetze-im-internet.de.
 Fetches verbatim law texts, parses official HTML via div.jurAbsatz,
-and populates the legal_citations table in db/gtp.duckdb.
+and populates the legal_citations table in db/wind_intelligence.duckdb.
 """
 
 import requests
@@ -103,7 +103,7 @@ def fetch_and_seed_legal_citations(conn=None) -> list[dict]:
     """
     close_conn = False
     if conn is None:
-        conn = duckdb.connect("db/gtp.duckdb")
+        conn = duckdb.connect("db/wind_intelligence.duckdb")
         close_conn = True
 
     headers = {
@@ -194,7 +194,7 @@ def fetch_and_seed_legal_citations(conn=None) -> list[dict]:
     )
 
     print("=" * 60)
-    print(f"SUMMARY: Loaded {len(records_loaded)} verified statutory citations into db/gtp.duckdb")
+    print(f"SUMMARY: Loaded {len(records_loaded)} verified statutory citations into db/wind_intelligence.duckdb")
     print("=" * 60)
 
     if close_conn:

@@ -7,8 +7,8 @@ import duckdb
 import os
 import shutil
 
-DB_ORIG = os.path.join(os.path.dirname(__file__), "..", "db", "gtp.duckdb")
-DB_OPT = os.path.join(os.path.dirname(__file__), "..", "db", "gtp_optimized.duckdb")
+DB_ORIG = os.path.join(os.path.dirname(__file__), "..", "db", "wind_intelligence.duckdb")
+DB_OPT = os.path.join(os.path.dirname(__file__), "..", "db", "wind_intelligence_optimized.duckdb")
 
 if os.path.exists(DB_OPT):
     os.remove(DB_OPT)

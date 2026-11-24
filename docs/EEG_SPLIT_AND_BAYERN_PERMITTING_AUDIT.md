@@ -1,13 +1,13 @@
 # EEG Expiration Split & Southern Permitting Duration Audit
 **Document ID:** `docs/EEG_SPLIT_AND_BAYERN_PERMITTING_AUDIT.md`  
-**Database Reference:** `db/gtp.duckdb` (38,488 Wind Turbines · BNetzA Marktstammdatenregister)  
+**Database Reference:** `db/wind_intelligence.duckdb` (38,488 Wind Turbines · BNetzA Marktstammdatenregister)  
 **Execution Timestamp:** 2026-09-27  
 
 ---
 
 ## Executive Summary
 
-This reference document provides an authoritative, fresh mathematical and legal reconciliation of two critical data integrity questions within the GTP Wind Intelligence platform:
+This reference document provides an authoritative, fresh mathematical and legal reconciliation of two critical data integrity questions within the Wind Intelligence Platform platform:
 1. **The EEG Expiration Split:** Reconciles the conflicting figures between **13,077.3 MW / 10,524 turbines** (Overview KPI card) and **14,084.9 MW / 11,053 turbines** (Operator Intelligence Repowering Cliff banner), detailing the exact statutory reason (§ 25 EEG) and SQL definitions behind the 529-turbine / 1,007.6-MW delta.
 2. **Bayern & Southern Permitting Durations:** Reconciles the historical snapshot figure (**21.0 months / 630 days**) against the analytical finding that **southern states exceed 30 months**, proving with fresh SQL and raw MaStR date pairs that active Bavarian pipeline projects average **30.5 months** (914 days median), with **58.9%** of planned projects (249 of 423 units; 58.6% across all 425 registry units with positive lead times) exceeding 30 months (up to 49.0 months).
 
@@ -18,7 +18,7 @@ This reference document provides an authoritative, fresh mathematical and legal 
 ### 1. The Exact Fresh SQL Queries
 
 #### Query A: Dynamic Rolling 20-Year Cutoff (Exact Day-to-Day Lookback)
-Executed in [`app/views/overview.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/overview.py#L108) for the Executive KPI card:
+Executed in [`app/views/overview.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/overview.py#L108) for the Executive KPI card:
 
 ```sql
 SELECT 
@@ -34,7 +34,7 @@ WHERE betriebs_status = 'operating'
 ---
 
 #### Query B: Calendar Year-End Vintage Cutoff (Full Commissioning Year 2006 and Earlier)
-Executed in [`app/views/operator_intelligence.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/operator_intelligence.py#L71) for the Executive Repowering Cliff Banner:
+Executed in [`app/views/operator_intelligence.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/operator_intelligence.py#L71) for the Executive Repowering Cliff Banner:
 
 ```sql
 SELECT 
@@ -50,7 +50,7 @@ WHERE betriebs_status = 'operating'
 ---
 
 #### Query C: Forward 18–20 Year Watch List (Commissioned 2007–2008 / Expiring 2027–2028)
-Executed in [`app/views/operator_intelligence.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/operator_intelligence.py#L76) for the 24-month cliff watch list:
+Executed in [`app/views/operator_intelligence.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/operator_intelligence.py#L76) for the 24-month cliff watch list:
 
 ```sql
 SELECT 
@@ -89,7 +89,7 @@ Both figures are 100% mathematically correct calculations on the same underlying
 | **Cutoff Definition** | **Exact Rolling 20-Year Lookback to the Day** | **Full Calendar Year Vintage (<= Dec 31, 2006)** |
 | **Exact Formula** | `inbetriebnahmedatum <= CURRENT_DATE - INTERVAL 20 YEAR` | `EXTRACT(YEAR FROM inbetriebnahmedatum) <= 2006` |
 | **Date Boundary** | Commissioned on or before **September 27, 2006** | Commissioned on or before **December 31, 2006** |
-| **Where Used in App** | [`app/views/overview.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/overview.py#L108) (Executive KPI card) | [`app/views/operator_intelligence.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/operator_intelligence.py#L71) (Repowering Cliff Banner) |
+| **Where Used in App** | [`app/views/overview.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/overview.py#L108) (Executive KPI card) | [`app/views/operator_intelligence.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/operator_intelligence.py#L71) (Repowering Cliff Banner) |
 
 #### The Exact Delta:
 The mathematical difference between the two queries is precisely the volume of turbines commissioned in the fourth quarter of 2006 (between September 28, 2006 and December 31, 2006):
@@ -144,9 +144,9 @@ WHERE bundesland_code = 'BY'
 
 ### 2. Reconciliation of the Conflicting Figures (21.0 Months vs. > 30 Months)
 
-Why did the pre-computed `snapshots` table in [`pipeline_radar.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/pipeline_radar.py) show **21.0 months (630 days)**, while earlier due diligence reports claimed southern states exceed **30 months**?
+Why did the pre-computed `snapshots` table in [`pipeline_radar.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/pipeline_radar.py) show **21.0 months (630 days)**, while earlier due diligence reports claimed southern states exceed **30 months**?
 
-The divergence is caused by a restrictive filter in the snapshot aggregation script [`pipeline/aggregate.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/pipeline/aggregate.py#L97):
+The divergence is caused by a restrictive filter in the snapshot aggregation script [`pipeline/aggregate.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/pipeline/aggregate.py#L97):
 ```sql
 -- In pipeline/aggregate.py line 97:
 AND YEAR(inbetriebnahmedatum) <= 2026
@@ -170,7 +170,7 @@ AND YEAR(inbetriebnahmedatum) <= 2026
 
 ### 3. Actual Date Pairs for a Sample of Bavarian Turbines
 
-The following table extracts raw records from `db/gtp.duckdb` for registered Bavarian projects (`bundesland_code = 'BY'`), showing the exact date pairs from permit registration (`registrierungsdatum`) to scheduled commercial operation (`inbetriebnahmedatum`):
+The following table extracts raw records from `db/wind_intelligence.duckdb` for registered Bavarian projects (`bundesland_code = 'BY'`), showing the exact date pairs from permit registration (`registrierungsdatum`) to scheduled commercial operation (`inbetriebnahmedatum`):
 
 | MaStR ID | Project / Display Name | Operator Name | Registration Date | Planned COD | Lead Time (Days) | Lead Time (Months) | Operating Status |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :--- |

@@ -1,6 +1,6 @@
 """
 scripts/run_documented_pipeline.py
-Executes a fully documented, end-to-end rerun of the GTP Wind Intelligence pipeline
+Executes a fully documented, end-to-end rerun of the Wind Intelligence Platform pipeline
 against the existing database (non-destructive safety snapshot mode).
 Generates:
 1. docs/PIPELINE_EXECUTION_LOG.md (live step-by-step markdown log)
@@ -35,7 +35,7 @@ from pipeline.aggregate import (
 )
 from pipeline.run_pipeline import run_tier2
 
-DB_PATH = "db/gtp.duckdb"
+DB_PATH = "db/wind_intelligence.duckdb"
 LOG_PATH = "docs/PIPELINE_EXECUTION_LOG.md"
 EXCEL_PATH = "data/exports/full_rebuild_audit.xlsx"
 
@@ -66,10 +66,10 @@ def main():
     total_start = time.time()
     run_timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     backup_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_file = f"db/gtp_duckdb_backup_{backup_ts}.duckdb"
+    backup_file = f"db/wind_duckdb_backup_{backup_ts}.duckdb"
 
     print("=" * 80)
-    print(f"GTP WIND INTELLIGENCE · COMPLETE DOCUMENTED PIPELINE RERUN")
+    print(f"WIND INTELLIGENCE PLATFORM · COMPLETE DOCUMENTED PIPELINE RERUN")
     print(f"Timestamp: {run_timestamp_str}")
     print("=" * 80)
 
@@ -97,7 +97,7 @@ def main():
     os.makedirs("docs", exist_ok=True)
     os.makedirs("data/exports", exist_ok=True)
 
-    log_header = f"""# GTP Wind Intelligence · Full Pipeline Execution Log
+    log_header = f"""# Wind Intelligence Platform · Full Pipeline Execution Log
 
 **Run Date & Time:** {run_timestamp_str}  
 **Database:** `{DB_PATH}` (Safety Snapshot: `{backup_file}`)  
@@ -210,7 +210,7 @@ def main():
         what_it_does="Idempotently creates all 10 core tables (including storage_units and bess_summary), installs/loads DuckDB VSS extension, builds HNSW index on embeddings, and seeds official sources and statutory legal citations.",
         why_it_exists="Guarantees exact schema parity and ensures vector search and statutory integrity checks are fully operational.",
         reads_from="pipeline/load.py, pipeline/fetch_legal_citations.py, https://www.gesetze-im-internet.de",
-        writes_to="db/gtp.duckdb (tables: sources, legal_citations, etc.)",
+        writes_to="db/wind_intelligence.duckdb (tables: sources, legal_citations, etc.)",
         exec_fn=lambda: init_db(),
         affected_table="sources"
     )
@@ -223,7 +223,7 @@ def main():
         what_it_does="Extracts the postal code to federal state mapping, standardizes 5-digit PLZ codes, and loads them into the plz_bundesland reference table.",
         why_it_exists="Turbine and storage records require postal code to state resolution to ensure zero assets are left with 'Unbekannt' jurisdictions.",
         reads_from="suche-postleitzahl.org / open-mastr.db fallback",
-        writes_to="reference/plz_bundesland.csv, db/gtp.duckdb (plz_bundesland)",
+        writes_to="reference/plz_bundesland.csv, db/wind_intelligence.duckdb (plz_bundesland)",
         exec_fn=lambda: (
             fetch_plz_lookup(),
             (conn_plz := duckdb.connect(DB_PATH)),
@@ -310,7 +310,7 @@ def main():
         what_it_does="Atomically replaces mastr_wind assets in wind_plants with the freshly parsed, operator-resolved turbine DataFrame.",
         why_it_exists="Populates the primary official asset table for all downstream state and operator queries.",
         reads_from="Parsed wind_df",
-        writes_to="db/gtp.duckdb (wind_plants)",
+        writes_to="db/wind_intelligence.duckdb (wind_plants)",
         exec_fn=lambda: (
             conn_w := duckdb.connect(DB_PATH),
             load_wind_plants(wind_df, conn_w),
@@ -327,7 +327,7 @@ def main():
         what_it_does="Loads all 2.8M clean battery storage records into the dedicated storage_units table.",
         why_it_exists="Stores battery storage assets separately from wind plants to maintain asset type separation.",
         reads_from="Parsed storage_df",
-        writes_to="db/gtp.duckdb (storage_units)",
+        writes_to="db/wind_intelligence.duckdb (storage_units)",
         exec_fn=lambda: (
             conn_s := duckdb.connect(DB_PATH),
             load_storage_units(storage_df, conn_s),
@@ -343,8 +343,8 @@ def main():
         description="Execute high-confidence proxy match for BESS co-location",
         what_it_does="Matches storage_units against wind_plants on (operator_mastr_id, postal_code) and resolved corporate entity names. Updates co_located_wind and matched_wind_mastr_id.",
         why_it_exists="Establishes commercial and geographic wind-storage co-location in the absence of a direct public foreign key.",
-        reads_from="db/gtp.duckdb (storage_units, wind_plants)",
-        writes_to="db/gtp.duckdb (storage_units.co_located_wind, matched_wind_mastr_id)",
+        reads_from="db/wind_intelligence.duckdb (storage_units, wind_plants)",
+        writes_to="db/wind_intelligence.duckdb (storage_units.co_located_wind, matched_wind_mastr_id)",
         exec_fn=lambda: (
             conn_l := duckdb.connect(DB_PATH),
             link_storage_to_wind(conn_l),
@@ -360,8 +360,8 @@ def main():
         description="Pre-calculate cumulative capacity and permitting snapshots",
         what_it_does="Builds yearly state and national cumulative installed MW, active plant count, planned pipeline MW, and median permitting speed from 2000 to current year.",
         why_it_exists="Powers sub-second UI rendering on Q1 Capacity and Q2 Pipeline dashboards without expensive raw scans.",
-        reads_from="db/gtp.duckdb (wind_plants)",
-        writes_to="db/gtp.duckdb (snapshots)",
+        reads_from="db/wind_intelligence.duckdb (wind_plants)",
+        writes_to="db/wind_intelligence.duckdb (snapshots)",
         exec_fn=lambda: (
             conn_sn := duckdb.connect(DB_PATH),
             build_snapshots(conn_sn),
@@ -377,8 +377,8 @@ def main():
         description="Aggregate state and national BESS co-location summaries and export CSV",
         what_it_does="Aggregates co-located BESS capacity, unit count, and co-location share percentage (bess_share_pct) across all 16 states and Deutschland, and exports data/exports/bess_summary_export.csv with explicit unit convention headers.",
         why_it_exists="Powers the Q4 executive dashboard and provides instant outbound consulting CSV exports.",
-        reads_from="db/gtp.duckdb (storage_units, wind_plants)",
-        writes_to="db/gtp.duckdb (bess_summary), data/exports/bess_summary_export.csv",
+        reads_from="db/wind_intelligence.duckdb (storage_units, wind_plants)",
+        writes_to="db/wind_intelligence.duckdb (bess_summary), data/exports/bess_summary_export.csv",
         exec_fn=lambda: (
             conn_b := duckdb.connect(DB_PATH),
             aggregate_bess(conn_b),
@@ -397,7 +397,7 @@ def main():
         what_it_does="Discovers corporate press releases, downloads filings, splits text into chunks, generates vector embeddings, and extracts verifiable business claims.",
         why_it_exists="Powers Tier 2 competitor intelligence and LLM-assisted claim verification.",
         reads_from="config/tier2_sources.yaml, Nordex press filings",
-        writes_to="db/gtp.duckdb (document_chunks, extracted_claims)",
+        writes_to="db/wind_intelligence.duckdb (document_chunks, extracted_claims)",
         exec_fn=lambda: run_tier2(),
         affected_table="extracted_claims"
     )
@@ -520,7 +520,7 @@ def main():
     ws_over = wb.active
     ws_over.title = "Overview"
     overview_df = pd.DataFrame(step_records)
-    write_df_to_sheet(ws_over, overview_df, "GTP Wind Intelligence · Pipeline Rebuild Steps")
+    write_df_to_sheet(ws_over, overview_df, "Wind Intelligence Platform · Pipeline Rebuild Steps")
 
     # 2. Sheet: Before vs After
     ws_bva = wb.create_sheet(title="Before vs After")

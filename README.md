@@ -1,8 +1,8 @@
-# GTP Wind Intelligence
+# Wind Intelligence Platform
 
 > **Institutional Market Intelligence Platform for Germany's Onshore Wind Infrastructure, Permitting Pipeline, Corporate Asset Ownership, and Co-Located Battery Energy Storage (BESS).**
 
-🌐 **Live Web Application:** [https://gtp-wind-intelligence-dm3mfa7b5ebx5xrh3rquvj.streamlit.app/](https://gtp-wind-intelligence-dm3mfa7b5ebx5xrh3rquvj.streamlit.app/)
+🌐 **Live Web Application:** [Streamlit Cloud Deployment](https://gtp-wind-intelligence-dm3mfa7b5ebx5xrh3rquvj.streamlit.app/)
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://gtp-wind-intelligence-dm3mfa7b5ebx5xrh3rquvj.streamlit.app/)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
@@ -17,7 +17,7 @@
 
 Evaluating renewable energy investments, M&A portfolios, and repowering pipelines in Germany typically requires weeks of tedious manual data engineering. Analysts must download multi-gigabyte regulatory dumps from the Federal Network Agency (*Bundesnetzagentur* MaStR), resolve tens of thousands of decentralized project special purpose vehicles (*GmbH & Co. KG*) to true parent utilities, audit statutory subsidy expiration dates under the Renewable Energy Sources Act (*EEG*), and corroborate unstructured corporate press releases.
 
-**GTP Wind Intelligence replaces this fragmented manual research with a live, auditable intelligence suite:**
+**The Wind Intelligence Platform replaces this fragmented manual research with a live, auditable intelligence suite:**
 - **Instant Due Diligence:** Evaluates 30,358 operating turbines (71.0 GW), 8,130 forward pipeline assets (33.1 GW), and all wind-co-located battery storage systems in milliseconds.
 - **Corporate Hierarchy Transparency:** Groups decentralized project SPVs into consolidated parent utility portfolios using deterministic heuristic mapping (e.g., RWE, EnBW, Alterric, PROKON, wpd).
 - **Statutory Repowering Screener:** Pinpoints Germany's **14.1 GW post-EEG subsidy cliff** (§ 25 EEG), identifying aging assets operating purely on merchant power prices.
@@ -110,8 +110,8 @@ For detailed technical specifications, mathematical formulas, and audit logs, re
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/<your-username>/gtp-wind-intelligence.git
-cd gtp-wind-intelligence
+git clone https://github.com/<your-username>/wind-intelligence-platform.git
+cd wind-intelligence-platform
 ```
 
 ### 2. Create and Activate Virtual Environment
@@ -151,13 +151,13 @@ The repository is configured for deployment with a lean 5.01 MB DuckDB database 
 ### Option A: Streamlit Community Cloud (Live Production)
 
 The application is deployed and running live:
-👉 **[https://gtp-wind-intelligence-dm3mfa7b5ebx5xrh3rquvj.streamlit.app/](https://gtp-wind-intelligence-dm3mfa7b5ebx5xrh3rquvj.streamlit.app/)**
+👉 **[Launch Live Web Application](https://gtp-wind-intelligence-dm3mfa7b5ebx5xrh3rquvj.streamlit.app/)**
 
 To deploy your own fork:
-1. Fork or clone this repository to your GitHub account (`gaurav-619/gtp-wind-intelligence`).
+1. Fork or clone this repository to your GitHub account (`gaurav-619/wind-intelligence-platform`).
 2. Log into [share.streamlit.io](https://share.streamlit.io/).
-3. Select repo: `gaurav-619/gtp-wind-intelligence`, Branch: `main`, Main file path: `app/main.py`.
-4. Click **Deploy!**. Because `db/gtp.duckdb` is optimized to 5.01 MB, the application boots in ~45 seconds.
+3. Select repo: `gaurav-619/wind-intelligence-platform`, Branch: `main`, Main file path: `app/main.py`.
+4. Click **Deploy!**. Because `db/wind_intelligence.duckdb` is optimized to 5.01 MB, the application boots in ~45 seconds.
 
 ---
 
@@ -167,10 +167,10 @@ You can build and deploy the application as a standalone container:
 
 ```dockerfile
 # Build Docker image
-docker build -t gtp-wind-intelligence .
+docker build -t wind-intelligence-platform .
 
 # Run container
-docker run -p 8501:8501 gtp-wind-intelligence
+docker run -p 8501:8501 wind-intelligence-platform
 ```
 
 ---

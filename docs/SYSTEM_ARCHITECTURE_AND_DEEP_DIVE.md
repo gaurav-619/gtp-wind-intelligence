@@ -1,4 +1,4 @@
-# GTP Wind Intelligence — Comprehensive System Architecture & Technical Master Blueprint
+# Wind Intelligence Platform — Comprehensive System Architecture & Technical Master Blueprint
 
 > **Target Audience:** Anyone reading this codebase for the first time—from a junior software engineer or data scientist to senior investment partners at **Greentech Partners**.  
 > **Mission:** An end-to-end, zero-ambiguity reference explaining **what** was built, **why** every technology was selected, **how** every Python function and SQL table works, **what the exact business results are**, and **how the German regulatory and legislative scenario directly maps to the database values**.
@@ -29,7 +29,7 @@
    - 4.3 Multilingual MiniLM-L12-v2 vs. Monolingual English Models
    - 4.4 OpenRouter API Multi-Model Fallback Chain vs. Single Endpoints
    - 4.5 Streamlit Reactive UI vs. React / Next.js
-5. [Database Architecture & Complete Schema Specification (db/gtp.duckdb)](#5-database-architecture--complete-schema-specification-dbgtpduckdb)
+5. [Database Architecture & Complete Schema Specification (db/wind_intelligence.duckdb)](#5-database-architecture--complete-schema-specification-dbwind_intelligenceduckdb)
    - 5.1 Table: sources
    - 5.2 Table: plz_bundesland
    - 5.3 Table: wind_plants
@@ -97,7 +97,7 @@ Germany's energy transition (*Energiewende*) is anchored in the Renewable Energy
 - **Annual Addition Requirement:** Germany must add **~8 to 10 GW of net new onshore capacity every year** between 2024 and 2030.
 
 ### 1.2 Target vs. Actual: Where Germany Stands Today (71.0 GW vs. 115 GW)
-In GTP Wind Intelligence, our Tier 1 pipeline analyzes **38,488 real onshore wind turbines** directly from the German master registry. The data reveals:
+In Wind Intelligence Platform, our Tier 1 pipeline analyzes **38,488 real onshore wind turbines** directly from the German master registry. The data reveals:
 - **Current Operating Capacity:** **71,014.5 MW (~71.0 GW)** across **30,358 operating turbines**.
 - **Expansion Gap to 2030 Target:** **44.0 GW** still needs to be built and energized over the next ~4.5 years.
 - **The Pipeline Surplus:** Our system counts **49,836.2 MW (~49.8 GW)** across **8,130 planned turbines** registered in the government database.
@@ -127,7 +127,7 @@ Before a wind turbine can be erected in Germany, it must undergo a rigorous appr
   3. Municipal Building Permission (*Gemeindliches Einvernehmen*).
   4. BNetzA Auction Bid (*Ausschreibung*): Developers must win a statutory feed-in tariff award.
 - **The Metric in our System:**
-  In [`pipeline/aggregate.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/pipeline/aggregate.py), we calculate the exact duration:
+  In [`pipeline/aggregate.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/pipeline/aggregate.py), we calculate the exact duration:
   $$\text{Permit Duration} = \text{Inbetriebnahmedatum} - \text{Registrierungsdatum}$$
 - **The Result:** The nationwide median permitting duration is **26.3 months** (~789 days).
   - Northern states (NI, SH) with specialized planning offices average **18–22 months**.
@@ -168,17 +168,17 @@ German financial and technical disclosures follow different typography from Engl
    - In German: `1.680 MW` means **1,680 Megawatts** (the period is a thousands delimiter).
    - In German: `0,89 Mio. EUR` means **0.89 Million Euros** (the comma is the decimal delimiter).
    - If an un-localized English LLM or regex processes `1.680 MW`, it parses it as `1.68 MW` (a 1,000x error!).
-   - **Our Solution:** In [`pipeline/extract_claims.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/pipeline/extract_claims.py), the prompt explicitly instructs the LLM on German number notation, and `validate_claim()` normalizes periods and commas before converting to float.
+   - **Our Solution:** In [`pipeline/extract_claims.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/pipeline/extract_claims.py), the prompt explicitly instructs the LLM on German number notation, and `validate_claim()` normalizes periods and commas before converting to float.
 2. **Leading Zeros in Postal Codes (PLZ):**
    - East German postal codes (Saxony, Saxony-Anhalt) start with `0` (e.g. `01067` Dresden, `04109` Leipzig).
    - Reading these as numbers drops the leading zero (`1067`), corrupting geographical lookups.
-   - **Our Solution:** In [`pipeline/parse.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/pipeline/parse.py), postal codes are string-sanitized: `.str.replace(r"\.0$", "", regex=True).str.zfill(5)`.
+   - **Our Solution:** In [`pipeline/parse.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/pipeline/parse.py), postal codes are string-sanitized: `.str.replace(r"\.0$", "", regex=True).str.zfill(5)`.
 
 ---
 
 ## 2. Executive Summary & Strategic Questions Answered (With Exact Results)
 
-GTP Wind Intelligence answers three critical investment questions using **real German government data** and **OpenRouter LLM fact extraction**:
+Wind Intelligence Platform answers three critical investment questions using **real German government data** and **OpenRouter LLM fact extraction**:
 
 ### 2.1 Market Landscape: Capacity Distribution & Commissioning Trajectories (38,488 Real Turbines)
 > **Strategic Question 1:** *Which German Bundesländer have the most installed onshore wind capacity, and what is their historical growth trajectory?*
@@ -343,7 +343,7 @@ flowchart TD
         F3 --> Trans["pipeline/translate_legal_citations.py<br/>• DeepL REST API<br/>• LEGAL_ENERGY_GLOSSARY Validation<br/>• Back-translation Similarity Diff"]
     end
 
-    subgraph Storage["CENTRAL ANALYTICAL WAREHOUSE: db/gtp.duckdb (DuckDB)"]
+    subgraph Storage["CENTRAL ANALYTICAL WAREHOUSE: db/wind_intelligence.duckdb (DuckDB)"]
         direction TB
         T_SRC[("sources<br/>(Provenance & Confidence Tiers)")]
         T_PLZ[("plz_bundesland<br/>(3,252 Postal Codes)")]
@@ -401,11 +401,11 @@ In institutional investment intelligence, mixing statutory facts with corporate 
 
 ## 4. Technology Stack & Architectural Decisions (Why We Chose Them)
 
-Every dependency in [`requirements.txt`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/requirements.txt) was selected after rigorous engineering trade-off evaluations:
+Every dependency in [`requirements.txt`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/requirements.txt) was selected after rigorous engineering trade-off evaluations:
 
 ```
 +-----------------------------------------------------------------------------------+
-| GTP WIND INTELLIGENCE COMPONENT ARCHITECTURE                                      |
+| WIND INTELLIGENCE PLATFORM COMPONENT ARCHITECTURE                                      |
 +-----------------------------------------------------------------------------------+
 |  Analytical Warehouse: DuckDB 1.1+ (Columnar Vector Engine)                       |
 |  Vector Search:        DuckDB VSS Extension (array_cosine_similarity + HNSW)      |
@@ -420,7 +420,7 @@ Every dependency in [`requirements.txt`](file:///c:/Users/goura/Documents/Projec
 
 ### 4.1 DuckDB vs. PostgreSQL / SQLite
 - **Why not SQLite?** SQLite is row-oriented. When running complex analytical queries across 38,000+ turbine rows (such as calculating rolling medians, percentile permitting durations, and multi-year cumulative additions), SQLite performs full row scans and runs in several seconds. DuckDB utilizes a **vectorized columnar engine** that evaluates SIMD-vectorized batches of columns in CPU L1/L2 cache, executing the exact same aggregations in **less than 15 milliseconds**.
-- **Why not PostgreSQL?** PostgreSQL requires a separate server daemon, TCP socket communication, user permissions, connection pooling, and external deployment infrastructure. DuckDB is completely self-contained in a single binary and a single file (`db/gtp.duckdb`), allowing zero-overhead embedded queries from Python.
+- **Why not PostgreSQL?** PostgreSQL requires a separate server daemon, TCP socket communication, user permissions, connection pooling, and external deployment infrastructure. DuckDB is completely self-contained in a single binary and a single file (`db/wind_intelligence.duckdb`), allowing zero-overhead embedded queries from Python.
 
 ### 4.2 DuckDB VSS vs. Dedicated Vector Databases (Pinecone / ChromaDB)
 Instead of maintaining an external vector database (like Pinecone, Weaviate, or ChromaDB), we use DuckDB's native **Vector Similarity Search (`vss`) extension**:
@@ -441,7 +441,7 @@ Commercial disclosures from German wind OEMs are frequently written in formal co
   - Compact (384 dimensions, ~420 MB weight footprint), allowing high-speed inference on CPU without requiring an expensive GPU.
 
 ### 4.4 OpenRouter API Multi-Model Fallback Chain vs. Single Endpoints
-Free-tier and specialized LLM endpoints can suffer from transient 429 rate limit spikes or upstream model deprecations. To guarantee production reliability, [`pipeline/extract_claims.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/pipeline/extract_claims.py) implements a resilient fallback sequence:
+Free-tier and specialized LLM endpoints can suffer from transient 429 rate limit spikes or upstream model deprecations. To guarantee production reliability, [`pipeline/extract_claims.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/pipeline/extract_claims.py) implements a resilient fallback sequence:
 1. **Primary Model:** `inclusionai/ling-3.0-flash-fin:free` (Specialized in financial and numerical precision).
 2. **Fallback Model 1:** `liquid/lfm-2.5-2.6b:free` (Fast, lightweight inference engine).
 3. **Fallback Model 2:** `qwen/qwen3.8-27b:free` (Comprehensive multilingual reasoning).
@@ -452,9 +452,9 @@ Streamlit enables direct, memory-shared Python execution against DuckDB. Analyti
 
 ---
 
-## 5. Database Architecture & Complete Schema Specification (`db/gtp.duckdb`)
+## 5. Database Architecture & Complete Schema Specification (`db/wind_intelligence.duckdb`)
 
-The analytical database contains **10 core tables** initialized in [`pipeline/load.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/pipeline/load.py):
+The analytical database contains **10 core tables** initialized in [`pipeline/load.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/pipeline/load.py):
 
 ```sql
 -- 1. Metadata and Registry of Sources
@@ -614,7 +614,7 @@ CREATE TABLE IF NOT EXISTS bess_summary (
 ## 6. Pipeline Walkthrough: Every Python Module & Function Explained
 
 ### 6.1 `pipeline/fetch_tier1.py` (Registry Ingestion, Market Actors & BESS Harvesting)
-- **File Location:** [`pipeline/fetch_tier1.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/pipeline/fetch_tier1.py)
+- **File Location:** [`pipeline/fetch_tier1.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/pipeline/fetch_tier1.py)
 - **Purpose:** Ingests official MaStR data, market actors, battery storage assets, and builds the postal-code-to-state lookup dictionary.
 - **Key Functions:**
   1. `fetch_plz_lookup() -> tuple[pd.DataFrame, str]`:
@@ -624,14 +624,14 @@ CREATE TABLE IF NOT EXISTS bess_summary (
   2. `load_plz_lookup(conn=None) -> int`:
      - Loads `reference/plz_bundesland.csv` into DuckDB table `plz_bundesland` and logs to `pipeline_runs`.
   3. `fetch_mastr_wind() -> str`:
-     - Extracts all **43,625 real wind turbine records** from SQLite table `EinheitenWind` into [`data/raw/mastr_wind_raw.csv`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/data/raw/mastr_wind_raw.csv).
+     - Extracts all **43,625 real wind turbine records** from SQLite table `EinheitenWind` into [`data/raw/mastr_wind_raw.csv`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/data/raw/mastr_wind_raw.csv).
   4. `fetch_market_actors() -> str`:
-     - Streams out the official **Marktakteure** registry from `open-mastr.db` SQLite into [`data/raw/market_actors_raw.csv`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/data/raw/market_actors_raw.csv) in memory-safe 200,000-row chunks.
+     - Streams out the official **Marktakteure** registry from `open-mastr.db` SQLite into [`data/raw/market_actors_raw.csv`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/data/raw/market_actors_raw.csv) in memory-safe 200,000-row chunks.
   5. `fetch_storage_units() -> str`:
-     - Streams out all **2,809,733 battery storage records** from SQLite table `EinheitenStromSpeicher` into [`data/raw/storage_units_raw.csv`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/data/raw/storage_units_raw.csv).
+     - Streams out all **2,809,733 battery storage records** from SQLite table `EinheitenStromSpeicher` into [`data/raw/storage_units_raw.csv`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/data/raw/storage_units_raw.csv).
 
 ### 6.2 `pipeline/parse.py` (Onshore Normalization & Corporate Name Resolution)
-- **File Location:** [`pipeline/parse.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/pipeline/parse.py)
+- **File Location:** [`pipeline/parse.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/pipeline/parse.py)
 - **Purpose:** Cleans, filters, standardizes raw German government records, and resolves corporate operator entities.
 - **Key Functions:**
   1. `COLUMN_PATTERNS`:
@@ -646,11 +646,11 @@ CREATE TABLE IF NOT EXISTS bess_summary (
      - Performs vectorized DuckDB SQL parsing on 2.8M storage records: converts kW to MW, maps operating statuses, standardizes dates, and resolves storage operator corporate names.
 
 ### 6.3 `pipeline/load.py` (DDL, VSS Indexing & Storage Ingestion/Linking)
-- **File Location:** [`pipeline/load.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/pipeline/load.py)
+- **File Location:** [`pipeline/load.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/pipeline/load.py)
 - **Purpose:** Manages DuckDB database schema, vector extensions, bulk loading, and co-location proxy matching.
 - **Key Functions:**
   1. `init_db() -> duckdb.DuckDBPyConnection`:
-     - Initializes `db/gtp.duckdb`, creates all 10 core tables, installs/loads VSS extension, builds persistent HNSW index, and seeds sources and statutory legal citations.
+     - Initializes `db/wind_intelligence.duckdb`, creates all 10 core tables, installs/loads VSS extension, builds persistent HNSW index, and seeds sources and statutory legal citations.
   2. `load_wind_plants(df, conn=None) -> int`:
      - Ingests parsed turbines into `wind_plants` with resolved operator legal entities.
   3. `load_storage_units(df, conn=None) -> int`:
@@ -662,7 +662,7 @@ CREATE TABLE IF NOT EXISTS bess_summary (
      - Universally logs pipeline execution timestamps, statuses, and record counts into `pipeline_runs`.
 
 ### 6.4 `pipeline/aggregate.py` (Historical Aggregations, Permitting & BESS Summaries)
-- **File Location:** [`pipeline/aggregate.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/pipeline/aggregate.py)
+- **File Location:** [`pipeline/aggregate.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/pipeline/aggregate.py)
 - **Purpose:** Computes cumulative annual time-series snapshots and BESS co-location summaries.
 - **Key Functions:**
   1. `build_snapshots(conn=None) -> int`:
@@ -670,22 +670,22 @@ CREATE TABLE IF NOT EXISTS bess_summary (
   2. `aggregate_bess(conn) -> pd.DataFrame`:
      - Computes state-level and national BESS co-location summaries: operating wind MW, co-located BESS MW, co-located unit counts, co-location share percentages (`bess_share_pct`, `colocation_mw_share_pct`), and average BESS capacity.
      - Rounds all megawatt values to 2 decimal places and percentages to 4 decimal places.
-     - Saves results into table `bess_summary` and exports [`data/exports/bess_summary_export.csv`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/data/exports/bess_summary_export.csv) with explicit unit convention headers.
+     - Saves results into table `bess_summary` and exports [`data/exports/bess_summary_export.csv`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/data/exports/bess_summary_export.csv) with explicit unit convention headers.
 
 ### 6.5 `pipeline/fetch_tier2.py` (Document Scraper & Fallback Harvester)
-- **File Location:** [`pipeline/fetch_tier2.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/pipeline/fetch_tier2.py)
+- **File Location:** [`pipeline/fetch_tier2.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/pipeline/fetch_tier2.py)
 - **Purpose:** Downloads corporate earnings reports, investor presentations, and press releases.
 
 ### 6.6 `pipeline/rag.py` (Text Chunking, Multilingual Embeddings & VSS Search)
-- **File Location:** [`pipeline/rag.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/pipeline/rag.py)
+- **File Location:** [`pipeline/rag.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/pipeline/rag.py)
 - **Purpose:** Splits text into chunks, generates vector embeddings, and performs semantic vector retrieval.
 
 ### 6.7 `pipeline/extract_claims.py` (LLM Extraction, German Parsing & Plausibility Validation)
-- **File Location:** [`pipeline/extract_claims.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/pipeline/extract_claims.py)
+- **File Location:** [`pipeline/extract_claims.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/pipeline/extract_claims.py)
 - **Purpose:** Directs LLM reasoning to extract structured financial and operational claims from text chunks.
 
 ### 6.8 `pipeline/run_pipeline.py` (CLI Master Controller)
-- **File Location:** [`pipeline/run_pipeline.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/pipeline/run_pipeline.py)
+- **File Location:** [`pipeline/run_pipeline.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/pipeline/run_pipeline.py)
 - **Purpose:** Master orchestrator for pipeline execution.
 
 ---

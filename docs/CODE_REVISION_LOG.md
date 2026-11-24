@@ -1,4 +1,4 @@
-# GTP Wind Intelligence — Comprehensive Code Revision & Architecture Log
+# Wind Intelligence Platform — Comprehensive Code Revision & Architecture Log
 
 > **Purpose:** A line-by-line confidence review document allowing any technical auditor, engineer, or investment partner to inspect every file in this repository, understand what problem it solves, what was changed or added during the audit cycle, and why—without needing to open a single `.py` file.
 
@@ -21,7 +21,7 @@
 Every fix made during this project's audit history is cross-referenced below to its specific files, root cause, and verified resolution:
 
 ### Fix 1: Operator Corporate Resolution Rate Reconciliation (93.0% vs. 94.2%)
-- **Files Touched:** [`pipeline/parse.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/pipeline/parse.py), [`app/views/operator_intelligence.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/operator_intelligence.py), [`app/views/overview.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/overview.py), [`docs/SYSTEM_ARCHITECTURE_AND_DEEP_DIVE.md`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/docs/SYSTEM_ARCHITECTURE_AND_DEEP_DIVE.md).
+- **Files Touched:** [`pipeline/parse.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/pipeline/parse.py), [`app/views/operator_intelligence.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/operator_intelligence.py), [`app/views/overview.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/overview.py), [`docs/SYSTEM_ARCHITECTURE_AND_DEEP_DIVE.md`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/docs/SYSTEM_ARCHITECTURE_AND_DEEP_DIVE.md).
 - **The Bug / Ambiguity:** Earlier audit notes cited both 94.2% and 93.0% without clarifying the denominator.
 - **The Fix:** Reconciled scopes mathematically against DuckDB:
   - **Operating Fleet:** **93.0%** (28,248 resolved corporate legal entities / 30,358 operating turbines).
@@ -30,7 +30,7 @@ Every fix made during this project's audit history is cross-referenced below to 
 - **Verification:** Verified via SQL in DuckDB and confirmed live on the Executive Overview and Operator Intelligence dashboards.
 
 ### Fix 2: Parent Company Rollup Engine & Leaderboard Separation
-- **Files Touched:** [`app/utils/operators.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/utils/operators.py), [`app/views/operator_intelligence.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/operator_intelligence.py).
+- **Files Touched:** [`app/utils/operators.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/utils/operators.py), [`app/views/operator_intelligence.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/operator_intelligence.py).
 - **The Bug / Ambiguity:** Raw MaStR entries register decentralized project SPVs (*GmbH & Co. KG*), masking actual institutional ownership. Furthermore, an earlier comparison table had accidentally juxtaposed *Bürgerwindpark Reußenköge* next to Alterric, creating confusion as to whether a citizen cooperative had been rolled into a corporate brand.
 - **The Fix:**
   - Implemented `map_to_parent_company()` using deterministic regex brand matching across 28 recognized utility, IPP, and municipal developer brands (RWE, EnBW, Alterric, PROKON, E.ON, Statkraft, PNE, etc.).
@@ -40,7 +40,7 @@ Every fix made during this project's audit history is cross-referenced below to 
 - **Verification:** Verified via AST analysis, unit tests, and live interactive radio toggle testing in the browser.
 
 ### Fix 3: Statutory EEG 20-Year Subsidy Expiration vs. 18–20 Year Watch List
-- **Files Touched:** [`app/views/operator_intelligence.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/operator_intelligence.py), [`docs/SYSTEM_ARCHITECTURE_AND_DEEP_DIVE.md`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/docs/SYSTEM_ARCHITECTURE_AND_DEEP_DIVE.md).
+- **Files Touched:** [`app/views/operator_intelligence.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/operator_intelligence.py), [`docs/SYSTEM_ARCHITECTURE_AND_DEEP_DIVE.md`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/docs/SYSTEM_ARCHITECTURE_AND_DEEP_DIVE.md).
 - **The Bug / Ambiguity:** Mixing of the strict statutory expiration cutoff (>20 years under § 25 EEG) with the forward-looking acquisition alert pool (18–20 years).
 - **The Fix:** Disaggregated metrics into two distinct tranches:
   - **Strict Statutory Expired (>20 Years):** **13,077.3 MW (~13.1 GW)** across **10,524 operating turbines**.
@@ -49,32 +49,32 @@ Every fix made during this project's audit history is cross-referenced below to 
 - **Verification:** Live date-filter validation executed in DuckDB matching commissioning dates against statutory 20-year anniversary bounds.
 
 ### Fix 4: Pipeline Execution Logging & Audit Run Math
-- **Files Touched:** [`pipeline/load.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/pipeline/load.py), [`pipeline/run_pipeline.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/pipeline/run_pipeline.py), [`scripts/run_documented_pipeline.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/scripts/run_documented_pipeline.py).
+- **Files Touched:** [`pipeline/load.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/pipeline/load.py), [`pipeline/run_pipeline.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/pipeline/run_pipeline.py), [`scripts/run_documented_pipeline.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/scripts/run_documented_pipeline.py).
 - **The Bug / Ambiguity:** In an earlier audit run, 13 steps were executed but `pipeline_runs` only grew by +9 rows.
 - **The Fix:** Clarified that compound operations (e.g. `init_db` combined with source seeding) log atomic consolidated run IDs, while standalone scripts log per-stage execution. Added explicit safeguards in `log_pipeline_run()` to ensure universal non-destructive logging across all pipeline invocations. Current verified count: **91 audit rows**.
 - **Verification:** Fresh database count executed: `SELECT COUNT(*) FROM pipeline_runs` yields exactly 91 rows.
 
 ### Fix 5: BESS Summary Aggregation & Export Column Parity
-- **Files Touched:** [`pipeline/aggregate.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/pipeline/aggregate.py), [`app/views/storage_colocation.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/storage_colocation.py).
+- **Files Touched:** [`pipeline/aggregate.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/pipeline/aggregate.py), [`app/views/storage_colocation.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/storage_colocation.py).
 - **The Bug / Ambiguity:** Potential confusion between decimal ratios (0.0008) and percentages (0.08%), and floating-point precision differences.
 - **The Fix:** Enforced explicit rounding (`ROUND(..., 2)` for MW, `ROUND(..., 4)` for percentages) and added `colocation_mw_share_pct` alongside `bess_share_pct`. Injected mandatory `# Unit convention:` metadata header comments into exported CSV files.
-- **Verification:** Verified in [`data/exports/bess_summary_export.csv`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/data/exports/bess_summary_export.csv) and live table displays.
+- **Verification:** Verified in [`data/exports/bess_summary_export.csv`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/data/exports/bess_summary_export.csv) and live table displays.
 
 ### Fix 6: Migration to Atomic `st.navigation` & Elimination of Legacy `app/pages/`
-- **Files Touched:** [`app/main.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/main.py), [`app/views/*`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/), deletion of [`app/pages/*`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/pages/).
+- **Files Touched:** [`app/main.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/main.py), [`app/views/*`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/), deletion of [`app/pages/*`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/pages/).
 - **The Bug / Ambiguity:** Legacy Streamlit sidebar multi-page auto-discovery created clutter, page name conflicts, and lacked a persistent executive header.
 - **The Fix:** Migrated to Streamlit's official top navigation pattern: `st.navigation([st.Page(...)], position="top")`. Removed legacy `app/pages/` folder completely to prevent file discovery collision warnings.
 - **Verification:** Live browser audit verified across all 6 views on `http://localhost:8501`.
 
 ### Fix 7: KPI Metric Card CommonMark HTML Leak Resolution
-- **Files Touched:** [`app/utils/theme.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/utils/theme.py), [`app/views/operator_intelligence.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/operator_intelligence.py), [`app/views/data_trust_center.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/data_trust_center.py), [`app/views/overview.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/overview.py), [`app/views/storage_colocation.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/storage_colocation.py).
-- **The Bug / Ambiguity:** In Operator Intelligence (Searchable Operator) and Data Trust Center (Tier 2 Claims), cards were rendering literal `</div>` and `<div class="gtp-kpi-value">` text inside gray code boxes.
-- **Root Cause:** CommonMark Markdown specification dictates that any line indented with 4 or more spaces following a blank line is parsed as an indented code block (`<pre><code>`). When a card had no `delta` badge, `render_kpi_card()` emitted an empty line followed by 8 leading spaces on `<div class="gtp-kpi-value">`.
+- **Files Touched:** [`app/utils/theme.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/utils/theme.py), [`app/views/operator_intelligence.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/operator_intelligence.py), [`app/views/data_trust_center.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/data_trust_center.py), [`app/views/overview.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/overview.py), [`app/views/storage_colocation.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/storage_colocation.py).
+- **The Bug / Ambiguity:** In Operator Intelligence (Searchable Operator) and Data Trust Center (Tier 2 Claims), cards were rendering literal `</div>` and `<div class="wind-kpi-value">` text inside gray code boxes.
+- **Root Cause:** CommonMark Markdown specification dictates that any line indented with 4 or more spaces following a blank line is parsed as an indented code block (`<pre><code>`). When a card had no `delta` badge, `render_kpi_card()` emitted an empty line followed by 8 leading spaces on `<div class="wind-kpi-value">`.
 - **The Fix:** Refactored `render_kpi_card()` to return compact, single-line HTML with zero leading indentation or line breaks. Created a `render_html()` helper function that automatically strips leading whitespace from multi-line HTML blocks before passing to `st.markdown()`.
 - **Verification:** Visually verified live in browser with screenshots: zero raw HTML tags or code blocks remain on screen.
 
 ### Fix 8: GeoJSON Regional Capacity Choropleth Map Alignment
-- **Files Touched:** [`app/views/market_landscape.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/market_landscape.py), [`app/utils/germany_states.geojson`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/utils/germany_states.geojson).
+- **Files Touched:** [`app/views/market_landscape.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/market_landscape.py), [`app/utils/germany_states.geojson`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/utils/germany_states.geojson).
 - **The Bug / Ambiguity:** Regional capacity density map rendered blank gray landmasses without color shading.
 - **The Fix:** Identified that feature outer IDs in the GeoJSON are integers (`0..15`), whereas the ISO codes (`DE-NI`, `DE-BY`, etc.) reside inside `properties.id`. Added `featureidkey="properties.id"` to the Plotly `choropleth` call.
 - **Verification:** Live browser screenshot confirmed all 16 federal states render with continuous color gradients matching their MW capacity.
@@ -121,7 +121,7 @@ Every fix made during this project's audit history is cross-referenced below to 
 - **Status:** Modified this session.
 - **Reason for Change:** Expanded schema from 8 to 10 tables (added `storage_units` and `bess_summary`), added HNSW vector persistence flags, and created `link_storage_to_wind()`.
 - **Functions:**
-  - `init_db() -> duckdb.DuckDBPyConnection`: Connects to `db/gtp.duckdb`, creates all 10 core tables, installs and loads VSS, and builds persistent HNSW index.
+  - `init_db() -> duckdb.DuckDBPyConnection`: Connects to `db/wind_intelligence.duckdb`, creates all 10 core tables, installs and loads VSS, and builds persistent HNSW index.
   - `log_pipeline_run(conn, step, records_processed, source_id, status, notes) -> None`: Universal audit logging helper recording execution timestamp, records, status, and diagnostic messages in `pipeline_runs`.
   - `load_wind_plants(df, conn=None) -> int`: Bulk-loads 38,488 parsed onshore turbines into `wind_plants`.
   - `load_storage_units(df, conn=None) -> int`: Bulk-loads 2,809,733 battery storage records into `storage_units`.
@@ -134,7 +134,7 @@ Every fix made during this project's audit history is cross-referenced below to 
 - **Reason for Change:** Added `aggregate_bess()`, enforced 2026 future-date leakage capping on historical commissioning trends, and added explicit rounding and parity columns.
 - **Functions:**
   - `build_snapshots(conn=None) -> int`: Generates 459 cumulative annual snapshots (2000–2026) across all 16 states and Deutschland (`DE`), calculating operating MW, turbine counts, planned pipeline, and median permitting durations.
-  - `aggregate_bess(conn=None) -> pd.DataFrame`: Computes state-level and national BESS co-location summaries, rounding MW values to 2 decimal places and exporting [`data/exports/bess_summary_export.csv`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/data/exports/bess_summary_export.csv).
+  - `aggregate_bess(conn=None) -> pd.DataFrame`: Computes state-level and national BESS co-location summaries, rounding MW values to 2 decimal places and exporting [`data/exports/bess_summary_export.csv`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/data/exports/bess_summary_export.csv).
 - **Known Limitations:** Permitting duration calculation relies on valid `Registrierungsdatum` and `Inbetriebnahmedatum` pairs; records lacking either date are excluded from median computation.
 
 #### 6. `pipeline/fetch_tier2.py`
@@ -229,7 +229,7 @@ Every fix made during this project's audit history is cross-referenced below to 
 - **Functions:** None.
 
 #### 15. `app/utils/db.py`
-- **Purpose:** Thread-safe, cached analytical database query interface connecting to `db/gtp.duckdb`.
+- **Purpose:** Thread-safe, cached analytical database query interface connecting to `db/wind_intelligence.duckdb`.
 - **Status:** Unchanged core logic.
 - **Functions:**
   - `get_connection(read_only=True) -> duckdb.DuckDBPyConnection`: Returns an active DuckDB connection with `vss` extension pre-loaded.
@@ -392,19 +392,19 @@ Every fix made during this project's audit history is cross-referenced below to 
 
 #### 34. `app/pages/q1_capacity.py`
 - **Status:** Removed this session.
-- **Reason for Removal:** Refactored and relocated to [`app/views/market_landscape.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/market_landscape.py).
+- **Reason for Removal:** Refactored and relocated to [`app/views/market_landscape.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/market_landscape.py).
 
 #### 35. `app/pages/q2_pipeline.py`
 - **Status:** Removed this session.
-- **Reason for Removal:** Refactored and relocated to [`app/views/pipeline_radar.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/pipeline_radar.py).
+- **Reason for Removal:** Refactored and relocated to [`app/views/pipeline_radar.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/pipeline_radar.py).
 
 #### 36. `app/pages/provenance.py`
 - **Status:** Removed this session.
-- **Reason for Removal:** Refactored and relocated to [`app/views/data_trust_center.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/data_trust_center.py).
+- **Reason for Removal:** Refactored and relocated to [`app/views/data_trust_center.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/data_trust_center.py).
 
 #### 37. `app/pages/q4_bess.py`
 - **Status:** Removed this session.
-- **Reason for Removal:** Refactored and relocated to [`app/views/storage_colocation.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/views/storage_colocation.py).
+- **Reason for Removal:** Refactored and relocated to [`app/views/storage_colocation.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/views/storage_colocation.py).
 
 ---
 

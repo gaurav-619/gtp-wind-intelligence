@@ -416,7 +416,7 @@ def render_pipeline_radar():
         st.download_button(
             label="⬇️ Export Pipeline Radar & Permitting Summary (CSV)",
             data=csv_pipe_summary,
-            file_name=f"gtp_wind_pipeline_radar_{date.today()}.csv",
+            file_name=f"wind_pipeline_radar_{date.today()}.csv",
             mime="text/csv",
             key="radar_download_csv",
             help="Download permitting cycle times and pipeline capacity metrics as CSV."

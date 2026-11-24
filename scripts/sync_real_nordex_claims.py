@@ -1,6 +1,6 @@
 import duckdb
 
-con = duckdb.connect("db/gtp.duckdb")
+con = duckdb.connect("db/wind_intelligence.duckdb")
 
 # 1. Update document_chunks with the official audited text
 with open("data/raw/nordex_press_Q1_2024.txt", "r", encoding="utf-8") as f:

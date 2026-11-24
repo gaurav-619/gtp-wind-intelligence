@@ -1,1 +1,1 @@
-# GTP Wind Intelligence - Pipeline Module
+# Wind Intelligence Platform - Pipeline Module

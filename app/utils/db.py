@@ -12,7 +12,7 @@ import duckdb
 import pandas as pd
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "db", "gtp.duckdb")
+DB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "db", "wind_intelligence.duckdb")
 
 
 def get_connection():

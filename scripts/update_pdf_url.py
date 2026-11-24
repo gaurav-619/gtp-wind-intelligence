@@ -1,6 +1,6 @@
 import duckdb
 
-con = duckdb.connect("db/gtp.duckdb")
+con = duckdb.connect("db/wind_intelligence.duckdb")
 
 pdf_url = "https://ir.nordex-online.com/media/document/36513768-7bf3-40ac-bd9a-f283ff7cb92f/assets/DE000A0D6554-Q1-2024-EQ-E-00.pdf"
 

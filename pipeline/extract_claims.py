@@ -96,8 +96,8 @@ def call_llm(prompt: str) -> tuple[str, str]:
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={
                     "Authorization": f"Bearer {api_key.strip()}",
-                    "HTTP-Referer": "https://github.com/gtp-wind",
-                    "X-Title": "GTP Wind Intelligence",
+                    "HTTP-Referer": "https://github.com/wind-intelligence-platform",
+                    "X-Title": "Wind Intelligence Platform",
                     "Content-Type": "application/json",
                 },
                 json={
@@ -333,7 +333,7 @@ def validate_legal_citation(citation: dict, conn=None) -> tuple[bool, dict | Non
     """
     close_conn = False
     if conn is None:
-        conn = duckdb.connect("db/gtp.duckdb", read_only=True)
+        conn = duckdb.connect("db/wind_intelligence.duckdb", read_only=True)
         close_conn = True
 
     try:
@@ -378,7 +378,7 @@ def verify_and_annotate_text_citations(text: str, conn=None, replace_inline: boo
 
     close_conn = False
     if conn is None:
-        conn = duckdb.connect("db/gtp.duckdb")
+        conn = duckdb.connect("db/wind_intelligence.duckdb")
         close_conn = True
 
     try:
@@ -564,7 +564,7 @@ if __name__ == "__main__":
     with open("config/tier2_sources.yaml") as f:
         config = yaml.safe_load(f)
 
-    conn = duckdb.connect("db/gtp.duckdb")
+    conn = duckdb.connect("db/wind_intelligence.duckdb")
 
     for source in config["sources"]:
         source_id = source["source_id"]

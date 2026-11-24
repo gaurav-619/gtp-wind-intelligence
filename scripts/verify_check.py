@@ -1,6 +1,6 @@
 import duckdb
 
-con = duckdb.connect('db/gtp.duckdb')
+con = duckdb.connect('db/wind_intelligence.duckdb')
 
 print("=== 1. STORAGE UNIT (BESS) ===")
 bess_df = con.execute("""

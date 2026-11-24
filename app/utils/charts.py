@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 
 
-# GTP brand colours
+# Platform brand colours
 COLORS = {
     "primary": "#2563EB",
     "primary_light": "#93C5FD",

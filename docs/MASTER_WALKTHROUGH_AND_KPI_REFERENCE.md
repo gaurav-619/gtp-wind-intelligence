@@ -1,4 +1,4 @@
-# GTP Wind Intelligence — Master System Walkthrough & KPI Reference Manual
+# Wind Intelligence Platform — Master System Walkthrough & KPI Reference Manual
 
 > **Document Version:** 1.0 (Production Verified)  
 > **Target Audience:** Technical Auditors, Software Engineers, Data Scientists, and Investment Partners at Greentech Partners.  
@@ -29,7 +29,7 @@
 The repository is organized into distinct, modular functional layers. All temporary test scripts and orphaned multi-page files have been cleaned from the active workspace:
 
 ```text
-gtp-wind-intelligence/
+wind-intelligence-platform/
 ├── app/
 │   ├── main.py                     # Atomic entrypoint with st.navigation(position="top")
 │   ├── utils/
@@ -62,7 +62,7 @@ gtp-wind-intelligence/
 │   ├── CODE_REVISION_LOG.md        # File-by-file changelog & audit cross-references
 │   ├── PIPELINE_EXECUTION_LOG.md   # Step-by-step audit run benchmarks & row counts
 │   └── VERIFICATION_AUDIT_REPORT.md# Reconciled numbers & mathematical proofs
-├── db/gtp.duckdb                   # Central analytical warehouse (10 core tables)
+├── db/wind_intelligence.duckdb                   # Central analytical warehouse (10 core tables)
 ├── requirements.txt                # Pinned dependencies (duckdb, streamlit, openpyxl, etc.)
 └── .gitignore                      # Safe repository ignore rules preserving .gitkeep
 ```
@@ -90,7 +90,7 @@ Every figure across the platform originates from authentic statutory or corporat
 flowchart LR
     A["Raw Registries<br/>(MaStR SQLite)"] -->|fetch_tier1.py| B["Raw CSV Exports<br/>(data/raw/)"]
     B -->|parse.py| C["Clean DataFrames<br/>(Normalized Onshore)"]
-    C -->|load.py| D[("db/gtp.duckdb<br/>(10 Core Tables)")]
+    C -->|load.py| D[("db/wind_intelligence.duckdb<br/>(10 Core Tables)")]
     D -->|aggregate.py| E["Snapshots & BESS<br/>(Time-Series Tables)"]
     E -->|Streamlit Top-Nav| F["Interactive UI<br/>(6 Dedicated Views)"]
 ```
@@ -110,7 +110,7 @@ flowchart LR
   - **Unresolved 7.0% (2,110 units):** Verified as 100% private landowners and micro-farmers whose personal names are redacted by BNetzA under the Federal Data Protection Act (*BDSG*) and GDPR.
 
 ### Step 3: Loading & Co-Location Linking (`pipeline/load.py`)
-- **DDL & Vector Extension:** Creates all 10 core tables in `db/gtp.duckdb`, enables the DuckDB `vss` vector similarity search extension, and initializes the HNSW vector index.
+- **DDL & Vector Extension:** Creates all 10 core tables in `db/wind_intelligence.duckdb`, enables the DuckDB `vss` vector similarity search extension, and initializes the HNSW vector index.
 - **Wind-BESS Proxy Co-Location Linking (`link_storage_to_wind`):**
   - Matches `storage_units` against `wind_plants` on `(operator_mastr_id, postal_code)`.
   - Isolates **603 operating commercial sites (637 battery units)** with **54.51 MW of BESS capacity** co-located with onshore wind plants. Sets `co_located_wind = TRUE` and links `matched_wind_mastr_id`.
@@ -118,7 +118,7 @@ flowchart LR
 ### Step 4: Time-Series Snapshots & BESS Summaries (`pipeline/aggregate.py`)
 - **Permitting Cycle Time:** Calculates $\text{Inbetriebnahmedatum} - \text{Registrierungsdatum}$.
 - **Cumulative Annual Snapshots:** Aggregates annual capacity additions from 2000 to 2026 for each state and national total, applying a $\le 2026$ date cap to avoid future placeholder date leakage.
-- **BESS Regional Summary:** Aggregates state-level co-location metrics into `bess_summary` and exports [`data/exports/bess_summary_export.csv`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/data/exports/bess_summary_export.csv) with explicit unit convention headers.
+- **BESS Regional Summary:** Aggregates state-level co-location metrics into `bess_summary` and exports [`data/exports/bess_summary_export.csv`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/data/exports/bess_summary_export.csv) with explicit unit convention headers.
 
 ### Step 5: Tier 2 Financial Extraction (`fetch_tier2.py`, `rag.py`, `extract_claims.py`)
 - **Document Chunking & Vector Search:** Chunks OEM reports into 500-word windows with 50-word overlap, generates 384-dimensional dense embeddings via `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`, and stores them in `document_chunks`.
@@ -129,7 +129,7 @@ flowchart LR
 
 ## 4. Central Analytical Warehouse: Schema of All 10 Tables
 
-All 10 tables in [`db/gtp.duckdb`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/db/gtp.duckdb) are fully populated and verified:
+All 10 tables in [`db/wind_intelligence.duckdb`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/db/wind_intelligence.duckdb) are fully populated and verified:
 
 ```sql
 -- 1. Metadata and Registry of Sources (4 rows)
@@ -335,14 +335,14 @@ Uses deterministic regex matching across 28 recognized developer brands (e.g. `\
 1. **The Phenomenon:**
    In CommonMark Markdown, any line with **4 or more leading spaces** following a line break is parsed as an **indented code block** (`<pre><code>`).
 2. **The Cause:**
-   `render_kpi_card()` in `app/utils/theme.py` previously returned a multi-line string where inner lines were indented with 8 spaces. When a card had no `delta` text, the line after `<span>{title}</span>` was followed by an empty line and 8 spaces on `<div class="gtp-kpi-value">`. The parser broke out of the HTML block and printed `</div>` and `<div class="gtp-kpi-value">` as raw text inside a gray code box.
-3. **The Solution in [`app/utils/theme.py`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/app/utils/theme.py):**
+   `render_kpi_card()` in `app/utils/theme.py` previously returned a multi-line string where inner lines were indented with 8 spaces. When a card had no `delta` text, the line after `<span>{title}</span>` was followed by an empty line and 8 spaces on `<div class="wind-kpi-value">`. The parser broke out of the HTML block and printed `</div>` and `<div class="wind-kpi-value">` as raw text inside a gray code box.
+3. **The Solution in [`app/utils/theme.py`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/app/utils/theme.py):**
    - **Compact Single-Line HTML:** Refactored `render_kpi_card()` to return single-line HTML with zero leading indentation or inner line breaks:
      ```python
      return (
-         f'<div class="gtp-kpi-card" style="{border_style}">'
-         f'<div class="gtp-kpi-label"><span>{title}</span>{delta_html}</div>'
-         f'<div class="gtp-kpi-value">{value}</div>'
+         f'<div class="wind-kpi-card" style="{border_style}">'
+         f'<div class="wind-kpi-label"><span>{title}</span>{delta_html}</div>'
+         f'<div class="wind-kpi-value">{value}</div>'
          f'{subtext_html}'
          f'</div>'
      )
@@ -363,4 +363,4 @@ Uses deterministic regex matching across 28 recognized developer brands (e.g. `\
 
 - **Data Integrity:** All 38,488 wind turbine records, 2,809,733 BESS records, and 91 audit log entries are verified in the active DuckDB instance with zero synthetic or mock rows.
 - **Frontend Presentation:** All 6 views in the Streamlit application render with clean top navigation, zero raw HTML leaks, zero code boxes, interactive Plotly charts, and authenticated provenance metadata.
-- **Documentation Completeness:** This document, alongside [`docs/SYSTEM_ARCHITECTURE_AND_DEEP_DIVE.md`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/docs/SYSTEM_ARCHITECTURE_AND_DEEP_DIVE.md) and [`docs/CODE_REVISION_LOG.md`](file:///c:/Users/goura/Documents/Project/Prototype/gtp-wind-intelligence/docs/CODE_REVISION_LOG.md), provides 100% transparent coverage for technical auditors, engineers, and investment partners.
+- **Documentation Completeness:** This document, alongside [`docs/SYSTEM_ARCHITECTURE_AND_DEEP_DIVE.md`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/docs/SYSTEM_ARCHITECTURE_AND_DEEP_DIVE.md) and [`docs/CODE_REVISION_LOG.md`](file:///c:/Users/goura/Documents/Project/Prototype/wind-intelligence-platform/docs/CODE_REVISION_LOG.md), provides 100% transparent coverage for technical auditors, engineers, and investment partners.

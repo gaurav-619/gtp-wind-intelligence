@@ -56,7 +56,7 @@ def translate_with_deepl(text: str, source_lang: str = "DE", target_lang: str = 
     headers = {
         "Authorization": f"DeepL-Auth-Key {api_key}",
         "Content-Type": "application/json",
-        "User-Agent": "GTP-Wind-Intelligence/1.0",
+        "User-Agent": "Wind-Intelligence-Platform/1.0",
     }
     payload = {
         "text": [text],
@@ -163,7 +163,7 @@ def translate_all_legal_citations(conn=None, api_key: str = None, run_back_trans
     """
     close_conn = False
     if conn is None:
-        conn = duckdb.connect("db/gtp.duckdb")
+        conn = duckdb.connect("db/wind_intelligence.duckdb")
         close_conn = True
 
     # Ensure schema has translation columns

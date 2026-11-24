@@ -1,6 +1,6 @@
 """
 app/views/overview.py
-GTP Wind Intelligence - Executive Landing Page & Platform Overview.
+Wind Intelligence Platform - Executive Landing Page & Platform Overview.
 
 Provides a confident value statement on what manual research this platform replaces,
 executive portfolio summary KPIs, navigation to deep-dive modules, and honest disclosures
@@ -89,7 +89,7 @@ def render_overview():
             </h1>
             <p style="color:#cbd5e1; font-size:16px; line-height:1.6; margin:0; max-width:980px;">
                 Replaces weeks of manual cross-referencing across multi-gigabyte regulatory dumps, anonymized operator records,
-                and corporate press releases. GTP Wind Intelligence synthesizes official BNetzA Marktstammdatenregister records into
+                and corporate press releases. The Wind Intelligence Platform synthesizes official BNetzA Marktstammdatenregister records into
                 validated, decision-ready analytics for energy partners, infrastructure funds, and development teams.
             </p>
         </div>

@@ -207,7 +207,7 @@ def process_document_for_rag(doc: dict, conn) -> int:
 if __name__ == "__main__":
     import pdfplumber
 
-    conn = duckdb.connect("db/gtp.duckdb")
+    conn = duckdb.connect("db/wind_intelligence.duckdb")
 
     # Process all downloaded press release PDFs
     pdf_files = glob.glob("data/raw/*_press*.pdf") + glob.glob("data/raw/*nordex*.pdf")

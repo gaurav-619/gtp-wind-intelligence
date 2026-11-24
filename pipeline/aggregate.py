@@ -384,7 +384,7 @@ def aggregate_bess(conn):
 
 if __name__ == "__main__":
     import duckdb as ddb
-    conn = ddb.connect("db/gtp.duckdb")
+    conn = ddb.connect("db/wind_intelligence.duckdb")
     build_snapshots(conn)
     aggregate_bess(conn)
     conn.close()

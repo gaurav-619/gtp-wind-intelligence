@@ -28,7 +28,7 @@ data/exports/*.csv
 data/exports/*.xlsx
 !data/exports/.gitkeep
 
-# DuckDB backup files (Keep production db/gtp.duckdb tracked)
+# DuckDB backup files (Keep production db/wind_intelligence.duckdb tracked)
 db/*_backup_*.duckdb
 db/*_raw_*.duckdb
 db/*.duckdb.tmp*

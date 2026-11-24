@@ -62,7 +62,7 @@ def discover_new_documents(source_config: dict) -> list:
         # Check which documents we already have in the database
         new_docs = []
         try:
-            conn = duckdb.connect("db/gtp.duckdb", read_only=True)
+            conn = duckdb.connect("db/wind_intelligence.duckdb", read_only=True)
             existing = conn.execute(
                 "SELECT DISTINCT document_url FROM document_chunks WHERE source_id = ?",
                 [source_id]
@@ -133,7 +133,7 @@ def download_document(doc: dict) -> dict:
     except Exception as e:
         print(f"  Download failed: {e}")
         try:
-            conn = duckdb.connect("db/gtp.duckdb")
+            conn = duckdb.connect("db/wind_intelligence.duckdb")
             log_pipeline_run(conn, "download_document", 0, source_id, "failed",
                              f"Download failed for {url}: {e}")
             conn.close()
@@ -182,7 +182,7 @@ def download_document(doc: dict) -> dict:
             local_path = fallback_found
         else:
             try:
-                conn = duckdb.connect("db/gtp.duckdb")
+                conn = duckdb.connect("db/wind_intelligence.duckdb")
                 log_pipeline_run(conn, "download_document", 0, source_id, "failed",
                                  f"PDF extraction failed for {local_path}: {e}")
                 conn.close()

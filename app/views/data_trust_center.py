@@ -123,7 +123,7 @@ def render_data_trust_center():
     # ──────────────────────────────────────────────────────────────────────────
     st.markdown("### 📚 Source Registry & Two-Tier Confidence Classification")
     st.caption(
-        "Every data point ingested into GTP Wind Intelligence is tagged with a confidence tier. "
+        "Every data point ingested into the Wind Intelligence Platform is tagged with a confidence tier. "
         "**Tier 1 (Official)** originates from statutory federal registers and is fact-grade. "
         "**Tier 2 (Company-Claim)** originates from corporate press announcements and is barred from client citation until human audit."
     )

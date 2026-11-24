@@ -11,12 +11,12 @@ import uuid
 from datetime import datetime, date
 
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "db", "gtp.duckdb")
+DB_PATH = os.path.join(os.path.dirname(__file__), "..", "db", "wind_intelligence.duckdb")
 
 
 def init_db():
     """
-    Connect to db/gtp.duckdb and create all tables.
+    Connect to db/wind_intelligence.duckdb and create all tables.
     Install and load the DuckDB VSS extension for vector similarity search.
     """
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -446,4 +446,4 @@ def link_storage_to_wind(conn):
 
 if __name__ == "__main__":
     init_db()
-    print("Database initialised at db/gtp.duckdb")
+    print("Database initialised at db/wind_intelligence.duckdb")

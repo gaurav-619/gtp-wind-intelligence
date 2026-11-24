@@ -1,1 +1,1 @@
-# GTP Wind Intelligence - App Module
+# Wind Intelligence Platform - App Module

@@ -1,1 +1,1 @@
-# GTP Wind Intelligence - Utils Module
+# Wind Intelligence Platform - Utils Module

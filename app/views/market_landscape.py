@@ -348,7 +348,7 @@ def render_market_landscape():
         st.download_button(
             label=f"⬇️ Export Market Landscape Data ({selected_year}) (CSV)",
             data=csv_q1,
-            file_name=f"gtp_wind_market_landscape_{selected_year}.csv",
+            file_name=f"wind_market_landscape_{selected_year}.csv",
             mime="text/csv",
             key="market_download_csv",
             help="Download complete state breakdown with national market share as CSV."
